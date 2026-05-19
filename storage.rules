@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Voice Notes ──
+    match /voice_notes/{chatId}/{fileName} {
+      // Authenticated users can read voice notes
+      allow read: if request.auth != null;
+
+      // Authenticated users can upload voice notes (max 5MB)
+      allow create: if request.auth != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('audio/.*');
+
+      // Only the uploader can delete
+      allow delete: if request.auth != null;
+    }
+  }
+}

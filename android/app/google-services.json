@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "610252083725",
+    "project_id": "alfloest",
+    "storage_bucket": "alfloest.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:610252083725:android:ea114402986efa0f04fb44",
+        "android_client_info": {
+          "package_name": "com.alfloest.chat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAXpJxLLn0I5Uln6e2UMgVgSFBkA1f29w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

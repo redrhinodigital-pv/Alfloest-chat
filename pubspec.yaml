@@ -1,0 +1,55 @@
+name: alfloest_chat
+description: "Alfloest Chat - A modern realtime messaging platform"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Supabase
+  supabase_flutter: ^2.4.1
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # Local Database
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Audio
+  record: ^5.2.1
+  just_audio: ^0.9.43
+
+  # UI
+  emoji_picker_flutter: ^4.3.0
+  google_fonts: ^6.2.1
+  shimmer: ^3.0.0
+
+  # Auth
+  google_sign_in: ^6.2.2
+
+  # Utils
+  intl: ^0.20.2
+  uuid: ^4.5.1
+  path_provider: ^2.1.5
+  permission_handler: ^11.4.0
+  url_launcher: ^6.3.1
+  connectivity_plus: ^6.1.4
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/

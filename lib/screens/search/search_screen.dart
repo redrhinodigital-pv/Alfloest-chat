@@ -1,0 +1,106 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/user_provider.dart';
+import '../../providers/chat_provider.dart';
+import '../../widgets/avatar_widget.dart';
+import '../chat/chat_screen.dart';
+
+/// Search screen — search users and start new chats
+class SearchScreen extends ConsumerStatefulWidget {
+  const SearchScreen({super.key});
+
+  @override
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
+}
+
+class _SearchScreenState extends ConsumerState<SearchScreen> {
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = ref.watch(authStateProvider).value?.uid ?? '';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: TextField(
+          controller: _searchController,
+          autofocus: true,
+          onChanged: (_) => setState(() {}),
+          style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            hintText: 'Search users...',
+            hintStyle: AppTextStyles.bodyLarge.copyWith(color: AppColors.textHint),
+            border: InputBorder.none,
+          ),
+        ),
+        actions: [
+          if (_searchController.text.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () {
+                _searchController.clear();
+                setState(() {});
+              },
+            ),
+        ],
+      ),
+      body: _searchController.text.isEmpty
+          ? Center(child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.search_rounded, size: 64, color: AppColors.textHint),
+                const SizedBox(height: 16),
+                Text('Search for users', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint)),
+              ],
+            ))
+          : _buildResults(uid),
+    );
+  }
+
+  Widget _buildResults(String uid) {
+    final searchAsync = ref.watch(userSearchProvider(_searchController.text));
+
+    return searchAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      error: (err, _) => Center(child: Text('Error: $err')),
+      data: (users) {
+        // Filter out current user
+        final filtered = users.where((u) => u.uid != uid).toList();
+        if (filtered.isEmpty) {
+          return Center(child: Text('No users found', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint)));
+        }
+
+        return ListView.builder(
+          itemCount: filtered.length,
+          itemBuilder: (_, i) {
+            final user = filtered[i];
+            return ListTile(
+              leading: AvatarWidget(name: user.displayName, imageUrl: user.photoUrl, size: 48, showOnline: true, isOnline: user.isOnline),
+              title: Text(user.displayName, style: TextStyle(color: AppColors.textPrimary)),
+              subtitle: Text(user.username.isNotEmpty ? '@${user.username}' : user.bio,
+                style: TextStyle(color: AppColors.textSecondary)),
+              onTap: () async {
+                // Create or get existing chat
+                final chat = await ref.read(chatRepositoryProvider).getOrCreateChat(uid, user.uid);
+                if (context.mounted) {
+                  Navigator.pushReplacement(context, MaterialPageRoute(
+                    builder: (_) => ChatScreen(chatId: chat.id, otherUserId: user.uid),
+                  ));
+                }
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+}

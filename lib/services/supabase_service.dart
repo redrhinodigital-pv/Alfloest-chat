@@ -1,0 +1,89 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Riverpod provider for SupabaseService
+final supabaseServiceProvider = Provider<SupabaseService>((ref) => SupabaseService());
+
+/// Supabase Database Core Service — Generic CRUD operations wrapper
+class SupabaseService {
+  final SupabaseClient _supabase = Supabase.instance.client;
+  
+  /// Public getter to access raw Supabase client if absolutely needed by repositories
+  SupabaseClient get client => _supabase;
+  SupabaseClient get db => _supabase;
+
+  // ─────────────────────────────────────────────
+  // Standard CRUD Methods
+  // ─────────────────────────────────────────────
+
+  /// Insert a single row into a table
+  Future<void> insertRow({
+    required String table, 
+    required Map<String, dynamic> data,
+  }) async {
+    await _supabase.from(table).insert(data);
+  }
+
+  /// Update a specific row matching the ID
+  Future<void> updateRow({
+    required String table, 
+    required String id, 
+    required Map<String, dynamic> data,
+  }) async {
+    await _supabase.from(table).update(data).eq('id', id);
+  }
+  
+  /// Upsert (Update if exists, Insert if missing)
+  Future<void> upsertRow({
+    required String table, 
+    required Map<String, dynamic> data,
+  }) async {
+    await _supabase.from(table).upsert(data);
+  }
+
+  /// Fetch a single row by ID
+  Future<Map<String, dynamic>?> getRow({
+    required String table, 
+    required String id,
+  }) async {
+    return await _supabase.from(table).select().eq('id', id).maybeSingle();
+  }
+
+  /// Delete a specific row by ID
+  Future<void> deleteRow({
+    required String table, 
+    required String id,
+  }) async {
+    await _supabase.from(table).delete().eq('id', id);
+  }
+
+  // ─────────────────────────────────────────────
+  // Streaming (via Supabase streamBuilder logic)
+  // ─────────────────────────────────────────────
+
+  /// Stream a table (Useful for lists like chat threads)
+  Stream<List<Map<String, dynamic>>> streamTable({
+    required String table,
+    String? eqField,
+    dynamic eqValue,
+    String orderBy = 'created_at',
+    bool ascending = false,
+  }) {
+    if (eqField != null) {
+      return _supabase.from(table).stream(primaryKey: ['id'])
+          .eq(eqField, eqValue)
+          .order(orderBy, ascending: ascending);
+    }
+    return _supabase.from(table).stream(primaryKey: ['id'])
+        .order(orderBy, ascending: ascending);
+  }
+
+  /// Stream a specific row by ID (Useful for real-time profile/status updates)
+  Stream<Map<String, dynamic>?> streamRow({
+    required String table, 
+    required String id,
+  }) {
+    return _supabase.from(table).stream(primaryKey: ['id']).eq('id', id)
+        .map((list) => list.isNotEmpty ? list.first : null);
+  }
+}
