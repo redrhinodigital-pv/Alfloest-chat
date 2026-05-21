@@ -31,7 +31,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _OnboardingPage(
       icon: Icons.security_rounded,
       title: 'Private & Secure',
-      subtitle: 'Your messages are protected with Firebase security. Chat with confidence.',
+      subtitle: 'Your messages are protected with Supabase security. Chat with confidence.',
     ),
   ];
 

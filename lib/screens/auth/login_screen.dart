@@ -34,6 +34,62 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.read(authViewModelProvider.notifier).signInWithEmailPassword(email, password);
   }
 
+  void _forgotPassword() {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter your email address in the input field first.', style: AppTextStyles.bodyMedium.copyWith(color: Colors.white)),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Reset Password', style: AppTextStyles.heading2.copyWith(color: Colors.white)),
+        content: Text('Send password reset link to $email?', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: AppTextStyles.button.copyWith(color: AppColors.textHint)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await ref.read(authViewModelProvider.notifier).sendPasswordResetEmail(email);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Password reset link sent to your email.', style: AppTextStyles.bodyMedium.copyWith(color: Colors.white)),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to send reset email: $e', style: AppTextStyles.bodyMedium.copyWith(color: Colors.white)),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: Text('Send Link', style: AppTextStyles.button.copyWith(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authViewModelProvider);
@@ -137,7 +193,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           icon: Icons.lock_outline_rounded,
                           obscureText: true,
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _forgotPassword,
+                            child: Text(
+                              'Forgot Password?',
+                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
                         
                         // Submit Button
                         SizedBox(
@@ -182,45 +249,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
 
                   const SizedBox(height: 24),
-                  
-                  // Divider
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.2))),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('OR', style: AppTextStyles.bodySmall.copyWith(color: Colors.white54)),
-                      ),
-                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.2))),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 24),
-
-                  // Google Auth Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton.icon(
-                      onPressed: authState.isLoading ? null : () {
-                        ref.read(authViewModelProvider.notifier).signInWithGoogle();
-                      },
-                      icon: authState.isLoading 
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2))
-                          : const Icon(Icons.g_mobiledata_rounded, size: 28, color: AppColors.surface),
-                      label: Text(
-                        'Continue with Google',
-                        style: AppTextStyles.button.copyWith(color: AppColors.surface, fontSize: 16),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppColors.surface,
-                        elevation: 4,
-                        shadowColor: Colors.black26,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),

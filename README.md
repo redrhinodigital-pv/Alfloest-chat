@@ -1,7 +1,7 @@
 
 
 
-To ensure the authentication architecture and search functionality works perfectly, execute the following SQL in your Supabase SQL Editor to provision the required `profiles` table and its security policies:
+To ensure the authentication architecture and search functionality works perfectly,le and its security policies:
 
 ```sql
 -- Drop any old tables

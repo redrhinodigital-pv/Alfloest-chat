@@ -31,13 +31,25 @@ class AuthViewModel extends StateNotifier<AuthViewState> {
 
   AuthViewModel(this._repo) : super(const AuthViewState());
 
-  Future<void> signInWithGoogle() async {
+  Future<void> sendPasswordResetEmail(String email) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      await _repo.signInWithGoogle();
-      state = state.copyWith(isLoading: false, status: AuthStatus.authenticated);
+      await _repo.sendPasswordResetEmail(email);
+      state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> resetPassword(String newPassword) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _repo.resetPassword(newPassword);
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
     }
   }
 

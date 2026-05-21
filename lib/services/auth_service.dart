@@ -25,20 +25,8 @@ class AuthService {
 
 
   // ─────────────────────────────────────────────
-  // Google OAuth Auth
+  // Removed Google OAuth Auth
   // ─────────────────────────────────────────────
-
-  /// Sign in with Google securely across Web and Native.
-  Future<void> signInWithGoogle() async {
-    try {
-      await _supabase.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: kIsWeb ? Uri.base.origin : 'io.supabase.alfloest://login-callback/',
-      );
-    } catch (e) {
-      throw AppAuthException('Google sign-in failed: $e', originalError: e);
-    }
-  }
 
   // ─────────────────────────────────────────────
   // Email/Password Auth
@@ -66,6 +54,29 @@ class AuthService {
       );
     } catch (e) {
       throw AppAuthException('Sign-up failed: $e', originalError: e);
+    }
+  }
+
+  /// Send forgot password reset email
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo: kIsWeb ? Uri.base.origin : 'io.supabase.alfloest://reset-password/',
+      );
+    } catch (e) {
+      throw AppAuthException('Failed to send reset email: $e', originalError: e);
+    }
+  }
+
+  /// Reset/update password for user
+  Future<void> resetPassword(String newPassword) async {
+    try {
+      await _supabase.auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
+    } catch (e) {
+      throw AppAuthException('Failed to update password: $e', originalError: e);
     }
   }
 

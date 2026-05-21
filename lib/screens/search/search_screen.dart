@@ -104,7 +104,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               onTap: () async {
                 // Create or get existing chat
                 final chat = await ref.read(chatRepositoryProvider).getOrCreateChat(uid, user.uid);
-                if (context.mounted) {
+                if (mounted) {
                   Navigator.pushReplacement(context, MaterialPageRoute(
                     builder: (_) => ChatScreen(chatId: chat.id, otherUserId: user.uid),
                   ));

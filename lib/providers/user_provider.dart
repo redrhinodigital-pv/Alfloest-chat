@@ -19,3 +19,8 @@ final userByIdProvider = FutureProvider.family<UserModel?, String>((ref, uid) {
 final userSearchProvider = FutureProvider.family<List<UserModel>, String>((ref, query) {
   return ref.watch(userRepositoryProvider).searchUsers(query);
 });
+
+/// Stream any user's profile (realtime)
+final userStreamProvider = StreamProvider.family<UserModel?, String>((ref, uid) {
+  return ref.watch(userRepositoryProvider).streamUser(uid);
+});

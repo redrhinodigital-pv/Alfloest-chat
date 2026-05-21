@@ -10,6 +10,7 @@ class ChatModel {
   final String lastMessageSender;
   final List<String> pinnedBy;
   final List<String> archivedBy;
+  final List<String> favoriteBy;
   final Map<String, int> unreadCount;
   final List<String> typingUsers;
   final DateTime createdAt;
@@ -23,6 +24,7 @@ class ChatModel {
     this.lastMessageSender = '',
     this.pinnedBy = const [],
     this.archivedBy = const [],
+    this.favoriteBy = const [],
     this.unreadCount = const {},
     this.typingUsers = const [],
     required this.createdAt,
@@ -43,6 +45,7 @@ class ChatModel {
       lastMessageSender: data['lastMessageSender'] ?? '',
       pinnedBy: List<String>.from(data['pinnedBy'] ?? []),
       archivedBy: List<String>.from(data['archivedBy'] ?? []),
+      favoriteBy: List<String>.from(data['favoriteBy'] ?? []),
       unreadCount: data['unreadCount'] is Map 
           ? Map<String, int>.from(data['unreadCount'].map((key, value) => MapEntry(key.toString(), int.tryParse(value.toString()) ?? 0)))
           : {},
@@ -63,6 +66,7 @@ class ChatModel {
       'lastMessageSender': lastMessageSender,
       'pinnedBy': pinnedBy,
       'archivedBy': archivedBy,
+      'favoriteBy': favoriteBy,
       'unreadCount': unreadCount,
       'typingUsers': typingUsers,
       'createdAt': createdAt.toUtc().toIso8601String(),
@@ -83,6 +87,9 @@ class ChatModel {
   /// Check if this chat is archived by a specific user
   bool isArchivedBy(String uid) => archivedBy.contains(uid);
 
+  /// Check if this chat is favorited by a specific user
+  bool isFavoritedBy(String uid) => favoriteBy.contains(uid);
+
   /// Get unread count for a specific user
   int getUnreadCount(String uid) => unreadCount[uid] ?? 0;
 
@@ -100,6 +107,7 @@ class ChatModel {
     String? lastMessageSender,
     List<String>? pinnedBy,
     List<String>? archivedBy,
+    List<String>? favoriteBy,
     Map<String, int>? unreadCount,
     List<String>? typingUsers,
     DateTime? createdAt,
@@ -113,6 +121,7 @@ class ChatModel {
       lastMessageSender: lastMessageSender ?? this.lastMessageSender,
       pinnedBy: pinnedBy ?? this.pinnedBy,
       archivedBy: archivedBy ?? this.archivedBy,
+      favoriteBy: favoriteBy ?? this.favoriteBy,
       unreadCount: unreadCount ?? this.unreadCount,
       typingUsers: typingUsers ?? this.typingUsers,
       createdAt: createdAt ?? this.createdAt,

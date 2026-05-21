@@ -1,10 +1,10 @@
-/// Enums used throughout the Alfloest Chat application
+// Enums used throughout the Alfloest Chat application
 
 /// Type of chat
 enum ChatType { oneToOne, group }
 
 /// Message content type
-enum MessageType { text, voiceNote, system }
+enum MessageType { text, voiceNote, system, image, video, file }
 
 /// Message delivery status
 enum MessageStatus { sending, sent, delivered, seen }

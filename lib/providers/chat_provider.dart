@@ -15,3 +15,8 @@ final chatsProvider = StreamProvider.family<List<ChatModel>, String>((ref, uid) 
 final messagesProvider = StreamProvider.family<List<MessageModel>, String>((ref, chatId) {
   return ref.watch(chatRepositoryProvider).streamMessages(chatId);
 });
+
+/// Stream a single chat
+final chatProvider = StreamProvider.family<ChatModel?, String>((ref, chatId) {
+  return ref.watch(chatRepositoryProvider).streamChat(chatId);
+});

@@ -30,7 +30,6 @@ dependencies:
   shimmer: ^3.0.0
 
   # Auth
-  google_sign_in: ^6.2.2
 
   # Utils
   intl: ^0.20.2
@@ -41,6 +40,8 @@ dependencies:
   connectivity_plus: ^6.1.4
 
   cupertino_icons: ^1.0.8
+  image_picker: ^1.2.2
+  file_picker: ^11.0.2
 
 dev_dependencies:
   flutter_test:

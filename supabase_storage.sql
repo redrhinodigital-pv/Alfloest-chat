@@ -39,8 +39,7 @@ ON CONFLICT (id) DO UPDATE SET
     'audio/ogg'
   ];
 
--- 2. Enable RLS on storage.objects (if not already enabled)
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- 2. Enable RLS on storage.objects (already enabled by default in Supabase)
 
 -- 3. Drop existing policies to prevent conflicts if re-running
 DROP POLICY IF EXISTS "Public Read Access for chat-media" ON storage.objects;

@@ -3,6 +3,7 @@ class GroupModel {
   final String id;
   final String name;
   final String description;
+  final String groupImage;
   final String createdBy;
   final List<String> admins;
   final List<String> members;
@@ -15,6 +16,7 @@ class GroupModel {
     required this.id,
     required this.name,
     this.description = '',
+    this.groupImage = '',
     required this.createdBy,
     this.admins = const [],
     this.members = const [],
@@ -29,6 +31,7 @@ class GroupModel {
       id: data['id']?.toString() ?? '',
       name: data['groupName'] ?? '',
       description: data['groupDescription'] ?? '',
+      groupImage: data['groupImage'] ?? '',
       createdBy: data['createdBy'] ?? '',
       admins: List<String>.from(data['admins'] ?? []),
       members: List<String>.from(data['members'] ?? []),
@@ -48,6 +51,7 @@ class GroupModel {
       'id': id,
       'groupName': name,
       'groupDescription': description,
+      'groupImage': groupImage,
       'createdBy': createdBy,
       'admins': admins,
       'members': members,
@@ -75,6 +79,7 @@ class GroupModel {
     String? id,
     String? name,
     String? description,
+    String? groupImage,
     String? createdBy,
     List<String>? admins,
     List<String>? members,
@@ -87,6 +92,7 @@ class GroupModel {
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
+      groupImage: groupImage ?? this.groupImage,
       createdBy: createdBy ?? this.createdBy,
       admins: admins ?? this.admins,
       members: members ?? this.members,

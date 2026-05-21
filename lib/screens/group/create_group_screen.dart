@@ -8,7 +8,6 @@ import '../../providers/user_provider.dart';
 import '../../widgets/gradient_button.dart';
 import '../../widgets/avatar_widget.dart';
 import '../../core/utils/validators.dart';
-import '../../models/user_model.dart';
 
 /// Create group screen
 class CreateGroupScreen extends ConsumerStatefulWidget {
@@ -152,8 +151,11 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                   ? const Icon(Icons.check_circle, color: AppColors.primary)
                   : const Icon(Icons.add_circle_outline, color: AppColors.textHint),
               onTap: () => setState(() {
-                if (isSelected) _selectedMembers.remove(user.uid);
-                else _selectedMembers.add(user.uid);
+                if (isSelected) {
+                  _selectedMembers.remove(user.uid);
+                } else {
+                  _selectedMembers.add(user.uid);
+                }
               }),
             );
           },

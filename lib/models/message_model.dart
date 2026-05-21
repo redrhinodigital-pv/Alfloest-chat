@@ -30,6 +30,11 @@ class MessageModel {
   final String? voiceNoteUrl;
   final int? voiceNoteDuration; // seconds
 
+  // Media
+  final String? mediaUrl;
+  final String? fileName;
+  final int? fileSize;
+
   // Mentions (for group chats)
   final List<String> mentions;
 
@@ -51,6 +56,9 @@ class MessageModel {
     this.reactions = const {},
     this.voiceNoteUrl,
     this.voiceNoteDuration,
+    this.mediaUrl,
+    this.fileName,
+    this.fileSize,
     this.mentions = const [],
   });
 
@@ -83,6 +91,9 @@ class MessageModel {
           : {},
       voiceNoteUrl: data['voiceNoteUrl'],
       voiceNoteDuration: data['voiceNoteDuration'],
+      mediaUrl: data['mediaUrl'],
+      fileName: data['fileName'],
+      fileSize: data['fileSize'] is int? ? data['fileSize'] as int? : int.tryParse(data['fileSize']?.toString() ?? ''),
       mentions: List<String>.from(data['mentions'] ?? []),
     );
   }
@@ -106,6 +117,9 @@ class MessageModel {
       'reactions': reactions,
       'voiceNoteUrl': voiceNoteUrl,
       'voiceNoteDuration': voiceNoteDuration,
+      'mediaUrl': mediaUrl,
+      'fileName': fileName,
+      'fileSize': fileSize,
       'mentions': mentions,
     };
   }
@@ -122,6 +136,9 @@ class MessageModel {
     if (deletedForEveryone) return '🚫 This message was deleted';
     if (deletedFor.contains(currentUid)) return '🚫 You deleted this message';
     if (type == MessageType.voiceNote) return '🎤 Voice note';
+    if (type == MessageType.image) return '📷 Photo';
+    if (type == MessageType.video) return '🎥 Video';
+    if (type == MessageType.file) return '📁 ${fileName ?? 'Document'}';
     return text;
   }
 
@@ -143,6 +160,9 @@ class MessageModel {
     Map<String, String>? reactions,
     String? voiceNoteUrl,
     int? voiceNoteDuration,
+    String? mediaUrl,
+    String? fileName,
+    int? fileSize,
     List<String>? mentions,
   }) {
     return MessageModel(
@@ -163,6 +183,9 @@ class MessageModel {
       reactions: reactions ?? this.reactions,
       voiceNoteUrl: voiceNoteUrl ?? this.voiceNoteUrl,
       voiceNoteDuration: voiceNoteDuration ?? this.voiceNoteDuration,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      fileName: fileName ?? this.fileName,
+      fileSize: fileSize ?? this.fileSize,
       mentions: mentions ?? this.mentions,
     );
   }

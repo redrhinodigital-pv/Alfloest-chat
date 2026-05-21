@@ -9,6 +9,7 @@ import '../../providers/user_provider.dart';
 import '../../widgets/chat_tile.dart';
 import '../../widgets/loading_widget.dart';
 import '../chat/chat_screen.dart';
+import '../chat/archived_chats_screen.dart';
 import '../group/group_chat_screen.dart';
 import '../group/create_group_screen.dart';
 import '../profile/profile_screen.dart';
@@ -68,12 +69,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               switch (val) {
                 case 'profile':
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+                  break;
+                case 'archived':
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ArchivedChatsScreen()));
+                  break;
                 case 'settings':
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+                  break;
               }
             },
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'profile', child: Text('Profile')),
+              const PopupMenuItem(value: 'archived', child: Text('Archived Chats')),
               const PopupMenuItem(value: 'settings', child: Text('Settings')),
             ],
           ),
@@ -166,6 +173,111 @@ class _ChatList extends ConsumerWidget {
         onTap: () => Navigator.push(context, MaterialPageRoute(
           builder: (_) => ChatScreen(chatId: chat.id, otherUserId: otherUid),
         )),
+        onLongPress: () => _showChatOptions(context, ref, chat, uid, otherUid, user?.displayName ?? 'Unknown'),
+      ),
+    );
+  }
+
+  void _showChatOptions(BuildContext context, WidgetRef ref, dynamic chat, String uid, String otherUid, String displayName) {
+    final isPinned = chat.isPinnedBy(uid);
+    final isArchived = chat.isArchivedBy(uid);
+    final isFavorited = chat.isFavoritedBy(uid);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                displayName,
+                style: AppTextStyles.labelLarge.copyWith(color: AppColors.textPrimary),
+              ),
+            ),
+            const Divider(color: AppColors.divider),
+            ListTile(
+              leading: Icon(isPinned ? Icons.push_pin_outlined : Icons.push_pin, color: Colors.white),
+              title: Text(isPinned ? 'Unpin Chat' : 'Pin Chat', style: const TextStyle(color: Colors.white)),
+              onTap: () {
+                ref.read(chatRepositoryProvider).togglePin(chat.id, uid, !isPinned);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: Icon(isArchived ? Icons.unarchive_outlined : Icons.archive_outlined, color: Colors.white),
+              title: Text(isArchived ? 'Unarchive Chat' : 'Archive Chat', style: const TextStyle(color: Colors.white)),
+              onTap: () {
+                ref.read(chatRepositoryProvider).toggleArchive(chat.id, uid, !isArchived);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: Icon(isFavorited ? Icons.favorite_border : Icons.favorite, color: isFavorited ? Colors.red : Colors.white),
+              title: Text(isFavorited ? 'Remove from Favorites' : 'Add to Favorites', style: const TextStyle(color: Colors.white)),
+              onTap: () {
+                ref.read(chatRepositoryProvider).toggleFavorite(chat.id, uid, !isFavorited);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.cleaning_services_rounded, color: Colors.white),
+              title: const Text('Clear Chat History', style: TextStyle(color: Colors.white)),
+              onTap: () async {
+                Navigator.pop(context);
+                final clear = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    backgroundColor: AppColors.surface,
+                    title: const Text('Clear Chat?', style: TextStyle(color: Colors.white)),
+                    content: const Text('This will delete all messages for you. This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Clear', style: TextStyle(color: AppColors.error)),
+                      ),
+                    ],
+                  ),
+                );
+                if (clear == true) {
+                  await ref.read(chatRepositoryProvider).clearChat(chat.id, uid);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_forever_rounded, color: AppColors.error),
+              title: const Text('Delete Chat', style: TextStyle(color: AppColors.error)),
+              onTap: () async {
+                Navigator.pop(context);
+                final delete = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    backgroundColor: AppColors.surface,
+                    title: const Text('Delete Chat?', style: TextStyle(color: Colors.white)),
+                    content: const Text('This will clear and remove this chat from your list.', style: TextStyle(color: AppColors.textSecondary)),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+                      ),
+                    ],
+                  ),
+                );
+                if (delete == true) {
+                  await ref.read(chatRepositoryProvider).deleteChat(chat.id, uid);
+                }
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -16,16 +16,45 @@ class AuthRepository {
   bool get isSignedIn => _authService.isSignedIn;
   Stream<AuthState> get authStateChanges => _authService.authStateChanges;
 
-  Future<void> signInWithGoogle() async {
-    await _authService.signInWithGoogle();
-  }
-
-  Future<void> signInWithEmailPassword(String email, String password) async {
+  Future<void> signInWithEmailPassword(String emailOrUsername, String password) async {
+    String email = emailOrUsername.trim();
+    if (!email.contains('@')) {
+      // Lookup username to get email
+      final response = await _dbService.db
+          .from(FirestoreConstants.usersCollection)
+          .select('email')
+          .eq('username', email)
+          .maybeSingle();
+      if (response == null) {
+        throw AppAuthException('Username "$emailOrUsername" not found.');
+      }
+      email = response['email']?.toString() ?? '';
+      if (email.isEmpty) {
+        throw AppAuthException('Username has no email registered.');
+      }
+    }
     await _authService.signInWithEmailPassword(email, password);
   }
 
   Future<void> signUpWithEmailPassword(String email, String password, String username) async {
+    // Unique usernames check
+    final check = await _dbService.db
+        .from(FirestoreConstants.usersCollection)
+        .select('id')
+        .eq('username', username.trim())
+        .maybeSingle();
+    if (check != null) {
+      throw AppAuthException('Username "$username" is already taken. Please choose another.');
+    }
     await _authService.signUpWithEmailPassword(email, password, username);
+  }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _authService.sendPasswordResetEmail(email);
+  }
+
+  Future<void> resetPassword(String newPassword) async {
+    await _authService.resetPassword(newPassword);
   }
 
   /// Automatically trigger profile creation/update via authStateChanges in Provider

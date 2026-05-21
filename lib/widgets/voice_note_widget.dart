@@ -1,4 +1,7 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../core/utils/date_formatter.dart';
@@ -109,6 +112,223 @@ class _VoiceNoteWidgetState extends State<VoiceNoteWidget> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A premium, self-contained stateful voice message player that displays
+/// active waveform animations while playing.
+class VoiceMessageBubble extends StatefulWidget {
+  final String url;
+  final bool isSent;
+  final int? durationSeconds;
+
+  const VoiceMessageBubble({
+    super.key,
+    required this.url,
+    required this.isSent,
+    this.durationSeconds,
+  });
+
+  @override
+  State<VoiceMessageBubble> createState() => _VoiceMessageBubbleState();
+}
+
+class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
+  late AudioPlayer _player;
+  bool _isPlaying = false;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+  double _playbackSpeed = 1.0;
+  Timer? _waveformTimer;
+  final List<double> _waveHeights = List.generate(24, (index) => 3.0 + Random().nextDouble() * 15.0);
+
+  @override
+  void initState() {
+    super.initState();
+    _player = AudioPlayer();
+    _initAudio();
+  }
+
+  Future<void> _initAudio() async {
+    try {
+      if (widget.durationSeconds != null) {
+        _duration = Duration(seconds: widget.durationSeconds!);
+      }
+      await _player.setUrl(widget.url);
+      _player.durationStream.listen((d) {
+        if (d != null && mounted) {
+          setState(() {
+            _duration = d;
+          });
+        }
+      });
+      _player.positionStream.listen((pos) {
+        if (mounted) {
+          setState(() {
+            _position = pos;
+          });
+        }
+      });
+      _player.playerStateStream.listen((state) {
+        if (mounted) {
+          setState(() {
+            _isPlaying = state.playing;
+            if (state.processingState == ProcessingState.completed) {
+              _isPlaying = false;
+              _player.seek(Duration.zero);
+              _player.pause();
+              _waveformTimer?.cancel();
+            }
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('Error loading voice message: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    _waveformTimer?.cancel();
+    super.dispose();
+  }
+
+  void _togglePlay() async {
+    if (_isPlaying) {
+      await _player.pause();
+      _waveformTimer?.cancel();
+    } else {
+      await _player.play();
+      _startWaveformAnimation();
+    }
+  }
+
+  void _startWaveformAnimation() {
+    _waveformTimer?.cancel();
+    _waveformTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (mounted && _isPlaying) {
+        setState(() {
+          for (int i = 0; i < _waveHeights.length; i++) {
+            _waveHeights[i] = 3.0 + Random().nextDouble() * 18.0;
+          }
+        });
+      }
+    });
+  }
+
+  void _changeSpeed() {
+    setState(() {
+      if (_playbackSpeed == 1.0) {
+        _playbackSpeed = 1.5;
+      } else if (_playbackSpeed == 1.5) {
+        _playbackSpeed = 2.0;
+      } else {
+        _playbackSpeed = 1.0;
+      }
+    });
+    _player.setSpeed(_playbackSpeed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = _duration.inMilliseconds > 0
+        ? _position.inMilliseconds / _duration.inMilliseconds
+        : 0.0;
+
+    return Container(
+      width: 250,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          // Play/Pause circular button
+          GestureDetector(
+            onTap: _togglePlay,
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.isSent ? Colors.white.withValues(alpha: 0.2) : AppColors.primary.withValues(alpha: 0.2),
+              ),
+              child: Icon(
+                _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                color: widget.isSent ? Colors.white : AppColors.primary,
+                size: 22,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Waveform & Timestamps
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Animated Waveform Bars
+                SizedBox(
+                  height: 24,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: List.generate(_waveHeights.length, (idx) {
+                      final barProgress = idx / _waveHeights.length;
+                      final isPassed = barProgress <= progress;
+                      return Container(
+                        width: 2.5,
+                        height: _waveHeights[idx],
+                        decoration: BoxDecoration(
+                          color: isPassed
+                              ? (widget.isSent ? Colors.white : AppColors.primary)
+                              : (widget.isSent ? Colors.white30 : AppColors.primary.withValues(alpha: 0.2)),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      DateFormatter.formatDuration(_position),
+                      style: AppTextStyles.chatTimestamp.copyWith(
+                        color: widget.isSent ? Colors.white60 : AppColors.textHint,
+                      ),
+                    ),
+                    Text(
+                      DateFormatter.formatDuration(_duration),
+                      style: AppTextStyles.chatTimestamp.copyWith(
+                        color: widget.isSent ? Colors.white60 : AppColors.textHint,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: _changeSpeed,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          color: widget.isSent ? Colors.white.withValues(alpha: 0.2) : AppColors.primary.withValues(alpha: 0.15),
+                        ),
+                        child: Text(
+                          '${_playbackSpeed}x',
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: widget.isSent ? Colors.white70 : AppColors.primary,
+                            fontSize: 9,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

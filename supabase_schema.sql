@@ -6,23 +6,27 @@
 -- and enables Realtime WebSockets.
 -- ==============================================================================
 
--- ------------------------------------------------------------------------------
--- 1. TABLE CREATIONS
--- ------------------------------------------------------------------------------
+-- 1. DROP THE LEGACY UNUSED TABLES AND CONSTRAINTS IF THEY EXIST
+DROP TABLE IF EXISTS public.users CASCADE;
 
--- USERS TABLE
-CREATE TABLE IF NOT EXISTS public.users (
+-- 2. PROFILES TABLE (Must exist before referenced by messages and groups)
+CREATE TABLE IF NOT EXISTS public.profiles (
     id uuid REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-    username text,
-    email text,
-    "displayName" text,
-    "photoUrl" text,
-    "isOnline" boolean DEFAULT false,
-    "lastSeen" timestamp with time zone DEFAULT timezone('utc'::text, now()),
-    "createdAt" timestamp with time zone DEFAULT timezone('utc'::text, now()),
-    "updatedAt" timestamp with time zone DEFAULT timezone('utc'::text, now()),
-    "blockedUsers" text[] DEFAULT '{}'::text[],
-    "fcmToken" text
+    username text UNIQUE NOT null,
+    email text NOT null,
+    display_name text,
+    avatar_url text,
+    bio text DEFAULT '',
+    is_online boolean DEFAULT false,
+    last_seen timestamp with time zone DEFAULT timezone('utc'::text, now()),
+    dark_mode boolean DEFAULT true,
+    hide_online boolean DEFAULT false,
+    hide_last_seen boolean DEFAULT false,
+    hide_email boolean DEFAULT true,
+    blocked_users text[] DEFAULT '{}'::text[],
+    fcm_token text,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT null,
+    updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT null
 );
 
 -- CHATS TABLE (1-to-1)
@@ -37,6 +41,7 @@ CREATE TABLE IF NOT EXISTS public.chats (
     "typingUsers" text[] DEFAULT '{}'::text[],
     "pinnedBy" text[] DEFAULT '{}'::text[],
     "archivedBy" text[] DEFAULT '{}'::text[],
+    "favoriteBy" text[] DEFAULT '{}'::text[], -- tracks favorited chats
     "createdAt" timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
 
@@ -45,7 +50,8 @@ CREATE TABLE IF NOT EXISTS public.groups (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     "groupName" text NOT NULL,
     "groupDescription" text,
-    "createdBy" uuid REFERENCES public.users(id),
+    "groupImage" text, -- Group avatar URL
+    "createdBy" uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
     admins uuid[] NOT NULL,
     members uuid[] NOT NULL,
     "lastMessage" text,
@@ -58,7 +64,7 @@ CREATE TABLE IF NOT EXISTS public.groups (
 CREATE TABLE IF NOT EXISTS public.messages (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     "chatId" uuid NOT NULL, -- Can refer to chats.id or groups.id
-    "senderId" uuid REFERENCES public.users(id),
+    "senderId" uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
     "senderName" text,
     text text,
     "messageType" text DEFAULT 'text',
@@ -70,6 +76,9 @@ CREATE TABLE IF NOT EXISTS public.messages (
     "forwardedFrom" text,
     "voiceNoteUrl" text,
     "voiceNoteDuration" integer,
+    "mediaUrl" text, -- Shared image, video, file URL
+    "fileName" text, -- Shared file original name
+    "fileSize" integer, -- Shared file size in bytes
     mentions text[] DEFAULT '{}'::text[],
     "deletedFor" uuid[] DEFAULT '{}'::uuid[],
     "deletedForEveryone" boolean DEFAULT false,
@@ -77,76 +86,63 @@ CREATE TABLE IF NOT EXISTS public.messages (
 );
 
 -- ------------------------------------------------------------------------------
--- 2. ENABLE ROW LEVEL SECURITY (RLS)
+-- 3. ENABLE ROW LEVEL SECURITY (RLS)
 -- ------------------------------------------------------------------------------
 
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
 -- ------------------------------------------------------------------------------
--- 3. RLS POLICIES
+-- 4. RLS POLICIES
 -- ------------------------------------------------------------------------------
 
--- 
--- USERS POLICIES
---
--- Policy: Users can only read/write their own profiles.
--- (Note: If your app requires searching for other users to start chats, you may need to change 
--- the SELECT policy to allow authenticated users to read all profiles: `auth.role() = 'authenticated'`)
-CREATE POLICY "Users can view their own profile" 
-ON public.users FOR SELECT 
+-- PROFILES POLICIES
+DROP POLICY IF EXISTS "Profiles are viewable by authenticated users" ON public.profiles;
+CREATE POLICY "Profiles are viewable by authenticated users"
+ON public.profiles FOR SELECT
+USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+CREATE POLICY "Users can update their own profile"
+ON public.profiles FOR UPDATE
 USING (auth.uid() = id);
 
-CREATE POLICY "Users can update their own profile" 
-ON public.users FOR UPDATE 
-USING (auth.uid() = id);
-
-CREATE POLICY "Users can insert their own profile" 
-ON public.users FOR INSERT 
-WITH CHECK (auth.uid() = id);
-
-
--- 
 -- CHATS POLICIES
---
--- Policy: Chat members only can read/update chats
+DROP POLICY IF EXISTS "Users can view chats they belong to" ON public.chats;
 CREATE POLICY "Users can view chats they belong to" 
 ON public.chats FOR SELECT 
 USING (auth.uid() = ANY(participants));
 
+DROP POLICY IF EXISTS "Users can update chats they belong to" ON public.chats;
 CREATE POLICY "Users can update chats they belong to" 
 ON public.chats FOR UPDATE 
 USING (auth.uid() = ANY(participants));
 
+DROP POLICY IF EXISTS "Users can create chats if they are a participant" ON public.chats;
 CREATE POLICY "Users can create chats if they are a participant" 
 ON public.chats FOR INSERT 
 WITH CHECK (auth.uid() = ANY(participants));
 
-
--- 
 -- GROUPS POLICIES
---
--- Policy: Group members only can read/update groups
+DROP POLICY IF EXISTS "Users can view groups they belong to" ON public.groups;
 CREATE POLICY "Users can view groups they belong to" 
 ON public.groups FOR SELECT 
 USING (auth.uid() = ANY(members));
 
+DROP POLICY IF EXISTS "Users can update groups they belong to" ON public.groups;
 CREATE POLICY "Users can update groups they belong to" 
 ON public.groups FOR UPDATE 
 USING (auth.uid() = ANY(members));
 
+DROP POLICY IF EXISTS "Users can create groups if they are a member" ON public.groups;
 CREATE POLICY "Users can create groups if they are a member" 
 ON public.groups FOR INSERT 
 WITH CHECK (auth.uid() = ANY(members));
 
-
--- 
 -- MESSAGES POLICIES
---
--- Policy: Users can only read messages if they belong to the chat
--- This uses a subquery to check if the user is in the chats.participants or groups.members array
+DROP POLICY IF EXISTS "Users can view messages in their chats" ON public.messages;
 CREATE POLICY "Users can view messages in their chats" 
 ON public.messages FOR SELECT 
 USING (
@@ -158,7 +154,7 @@ USING (
   )
 );
 
--- Policy: Users can send messages only if they belong to the chat
+DROP POLICY IF EXISTS "Users can insert messages in their chats" ON public.messages;
 CREATE POLICY "Users can insert messages in their chats" 
 ON public.messages FOR INSERT 
 WITH CHECK (
@@ -172,7 +168,7 @@ WITH CHECK (
   )
 );
 
--- Policy: Users can update their own messages (for reactions, deleting, editing)
+DROP POLICY IF EXISTS "Users can update messages in their chats" ON public.messages;
 CREATE POLICY "Users can update messages in their chats" 
 ON public.messages FOR UPDATE 
 USING (
@@ -184,19 +180,35 @@ USING (
   )
 );
 
-
--- ------------------------------------------------------------------------------
--- 4. ENABLE REALTIME
+-- 5. ENABLE REALTIME
 -- ------------------------------------------------------------------------------
 
--- Drop the publication if it already exists to avoid errors, then recreate
-BEGIN;
-  DROP PUBLICATION IF EXISTS supabase_realtime;
-  CREATE PUBLICATION supabase_realtime;
-COMMIT;
+-- Safely add tables to publication ignoring "already member" errors
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+  EXCEPTION WHEN OTHERS THEN
+    NULL; -- Ignore error if already a member
+  END;
 
--- Add all tables to the realtime publication so WebSockets can broadcast changes
-ALTER PUBLICATION supabase_realtime ADD TABLE public.users;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.chats;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.groups;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.chats;
+  EXCEPTION WHEN OTHERS THEN
+    NULL; -- Ignore error if already a member
+  END;
+
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.groups;
+  EXCEPTION WHEN OTHERS THEN
+    NULL; -- Ignore error if already a member
+  END;
+
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+  EXCEPTION WHEN OTHERS THEN
+    NULL; -- Ignore error if already a member
+  END;
+END;
+$$;
+

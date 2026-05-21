@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../providers/auth_provider.dart';
@@ -7,6 +8,7 @@ import '../../providers/user_provider.dart';
 import '../../widgets/avatar_widget.dart';
 import '../../widgets/gradient_button.dart';
 import '../../core/utils/validators.dart';
+import '../../services/storage_service.dart';
 
 /// Profile screen — view and edit user profile
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -22,6 +24,81 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late TextEditingController _bioController;
   bool _isEditing = false;
   bool _isSaving = false;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickAvatar() async {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      if (image == null) return;
+      
+      final uid = ref.read(authStateProvider).value?.uid;
+      if (uid == null) return;
+      
+      setState(() => _isSaving = true);
+      final storage = ref.read(storageServiceProvider);
+      final downloadUrl = await storage.uploadAvatar(filePath: image.path, userId: uid);
+      
+      await ref.read(userRepositoryProvider).updateProfile(uid: uid, photoUrl: downloadUrl);
+      setState(() => _isSaving = false);
+    } catch (e) {
+      setState(() => _isSaving = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload avatar: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  Future<void> _removeAvatar() async {
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid == null) return;
+    
+    setState(() => _isSaving = true);
+    try {
+      final storage = ref.read(storageServiceProvider);
+      await storage.deleteAvatar(userId: uid);
+      await ref.read(userRepositoryProvider).updateProfile(uid: uid, photoUrl: '');
+      setState(() => _isSaving = false);
+    } catch (e) {
+      setState(() => _isSaving = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to remove avatar: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  void _showAvatarOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: Colors.white),
+              title: const Text('Choose from Gallery', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAvatar();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_rounded, color: AppColors.error),
+              title: const Text('Remove Photo', style: TextStyle(color: AppColors.error)),
+              onTap: () {
+                Navigator.pop(context);
+                _removeAvatar();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -83,7 +160,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               children: [
                 // Avatar
-                AvatarWidget(name: user.displayName, imageUrl: user.photoUrl, size: 100),
+                GestureDetector(
+                  onTap: _isEditing ? _showAvatarOptions : null,
+                  child: Stack(
+                    children: [
+                      AvatarWidget(name: user.displayName, imageUrl: user.photoUrl, size: 100),
+                      if (_isEditing)
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 30),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 24),
 
                 if (_isEditing) ...[
@@ -129,7 +223,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   // Info cards
                   _ProfileInfoCard(icon: Icons.info_outline, label: 'Bio', value: user.bio.isNotEmpty ? user.bio : 'No bio yet'),
                   _ProfileInfoCard(icon: Icons.email_outlined, label: 'Email', value: user.email.isNotEmpty ? user.email : 'Not set'),
-                  _ProfileInfoCard(icon: Icons.phone_outlined, label: 'Phone', value: user.phone.isNotEmpty ? user.phone : 'Not set'),
                 ],
               ],
             ),

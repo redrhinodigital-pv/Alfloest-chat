@@ -50,6 +50,14 @@ class ChatRepository {
             .toList());
   }
 
+  Stream<ChatModel?> streamChat(String chatId) {
+    return _dbService.db
+        .from(FirestoreConstants.chatsCollection)
+        .stream(primaryKey: ['id'])
+        .eq('id', chatId)
+        .map((list) => list.isNotEmpty ? ChatModel.fromMap(list.first) : null);
+  }
+
   Future<ChatModel?> getChat(String chatId) async {
     final data = await _dbService.getRow(table: FirestoreConstants.chatsCollection, id: chatId);
     if (data != null) return ChatModel.fromMap(data);
@@ -61,6 +69,7 @@ class ChatRepository {
     required String text, MessageType type = MessageType.text,
     String? replyTo, String? replyToText, String? replyToSender,
     String? forwardedFrom, String? voiceNoteUrl, int? voiceNoteDuration,
+    String? mediaUrl, String? fileName, int? fileSize,
     List<String> mentions = const [],
   }) async {
     final msgId = _uuid.v4();
@@ -69,7 +78,8 @@ class ChatRepository {
       type: type, status: MessageStatus.sent, timestamp: DateTime.now(),
       replyTo: replyTo, replyToText: replyToText, replyToSender: replyToSender,
       forwardedFrom: forwardedFrom, voiceNoteUrl: voiceNoteUrl,
-      voiceNoteDuration: voiceNoteDuration, mentions: mentions,
+      voiceNoteDuration: voiceNoteDuration, mediaUrl: mediaUrl,
+      fileName: fileName, fileSize: fileSize, mentions: mentions,
     );
 
     // No batch native in supabase_flutter like Firestore, just sequential or RPC
@@ -78,11 +88,22 @@ class ChatRepository {
       data: message.toDbMap(),
     );
 
+    String lastMsgText = text;
+    if (type == MessageType.voiceNote) {
+      lastMsgText = '🎤 Voice note';
+    } else if (type == MessageType.image) {
+      lastMsgText = '📷 Photo';
+    } else if (type == MessageType.video) {
+      lastMsgText = '🎥 Video';
+    } else if (type == MessageType.file) {
+      lastMsgText = '📁 ${fileName ?? 'Document'}';
+    }
+
     await _dbService.updateRow(
       table: FirestoreConstants.chatsCollection,
       id: chatId,
       data: {
-        'lastMessage': type == MessageType.voiceNote ? '🎤 Voice note' : text,
+        'lastMessage': lastMsgText,
         'lastMessageTime': DateTime.now().toUtc().toIso8601String(),
         'lastMessageSender': senderId,
       },
@@ -180,5 +201,48 @@ class ChatRepository {
       if (!archive) archivedBy.remove(uid);
       await _dbService.updateRow(table: FirestoreConstants.chatsCollection, id: chatId, data: {'archivedBy': archivedBy});
     }
+  }
+
+  Future<void> toggleFavorite(String chatId, String uid, bool favorite) async {
+    final chat = await getChat(chatId);
+    if (chat != null) {
+      final favoriteBy = List<String>.from(chat.favoriteBy);
+      if (favorite && !favoriteBy.contains(uid)) favoriteBy.add(uid);
+      if (!favorite) favoriteBy.remove(uid);
+      await _dbService.updateRow(table: FirestoreConstants.chatsCollection, id: chatId, data: {'favoriteBy': favoriteBy});
+    }
+  }
+
+  Future<void> clearChat(String chatId, String uid) async {
+    try {
+      final messages = await _dbService.db
+          .from('messages')
+          .select('id, deletedFor')
+          .eq('chatId', chatId);
+      
+      for (final m in messages) {
+        final id = m['id'];
+        final deletedFor = List<String>.from(m['deletedFor'] ?? []);
+        if (!deletedFor.contains(uid)) {
+          deletedFor.add(uid);
+          await _dbService.db.from('messages').update({'deletedFor': deletedFor}).eq('id', id);
+        }
+      }
+    } catch (e) {
+      // Ignore or log
+    }
+  }
+
+  Future<void> deleteChat(String chatId, String uid) async {
+    await clearChat(chatId, uid);
+    await toggleArchive(chatId, uid, true);
+  }
+
+  Future<void> editMessage(String messageId, String newText) async {
+    await _dbService.updateRow(
+      table: 'messages',
+      id: messageId,
+      data: {'text': newText},
+    );
   }
 }

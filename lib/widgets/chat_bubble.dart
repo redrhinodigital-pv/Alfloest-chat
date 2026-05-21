@@ -1,11 +1,13 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../core/enums/enums.dart';
 import '../core/utils/date_formatter.dart';
+import './voice_note_widget.dart';
 
-/// Chat bubble widget — supports sent/received, reply, forward, reactions
+/// Chat bubble widget — supports sent/received, reply, forward, reactions, and media types.
 class ChatBubble extends StatelessWidget {
   final String text;
   final bool isSent;
@@ -21,6 +23,14 @@ class ChatBubble extends StatelessWidget {
   final VoidCallback? onLongPress;
   final VoidCallback? onDoubleTap;
   final VoidCallback? onReplyTap;
+
+  // Media support
+  final MessageType type;
+  final String? mediaUrl;
+  final String? fileName;
+  final int? fileSize;
+  final String? voiceNoteUrl;
+  final int? voiceNoteDuration;
 
   const ChatBubble({
     super.key,
@@ -38,7 +48,86 @@ class ChatBubble extends StatelessWidget {
     this.onLongPress,
     this.onDoubleTap,
     this.onReplyTap,
+    this.type = MessageType.text,
+    this.mediaUrl,
+    this.fileName,
+    this.fileSize,
+    this.voiceNoteUrl,
+    this.voiceNoteDuration,
   });
+
+  String _formatFileSize(int bytes) {
+    if (bytes <= 0) return "0 B";
+    const suffixes = ["B", "KB", "MB", "GB"];
+    final i = (log(bytes) / log(1024)).floor();
+    return '${(bytes / pow(1024, i)).toStringAsFixed(1)} ${suffixes[i]}';
+  }
+
+  void _downloadFile(BuildContext context) async {
+    final urlStr = mediaUrl ?? voiceNoteUrl;
+    if (urlStr == null || urlStr.isEmpty) return;
+    final url = Uri.parse(urlStr);
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch $urlStr';
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open link: $e')),
+        );
+      }
+    }
+  }
+
+  void _showImagePreview(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Glassmorphic background
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.85),
+                ),
+              ),
+            ),
+            // Preview Image
+            InteractiveViewer(
+              maxScale: 4.0,
+              child: Image.network(imageUrl),
+            ),
+            // Close and Download buttons
+            Positioned(
+              top: 20,
+              right: 20,
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.download_rounded, color: Colors.white, size: 28),
+                    onPressed: () => _downloadFile(context),
+                  ),
+                  const SizedBox(width: 10),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +151,7 @@ class ChatBubble extends StatelessWidget {
             children: [
               // Main bubble
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: isSent ? AppColors.bubbleSent : AppColors.bubbleReceived,
                   borderRadius: BorderRadius.only(
@@ -94,12 +183,12 @@ class ChatBubble extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.reply, size: 14,
-                                color: AppColors.textSecondary.withValues(alpha: 0.7)),
+                            const Icon(Icons.reply, size: 14, color: Colors.white60),
                             const SizedBox(width: 4),
-                            Text('Forwarded',
+                            Text(
+                              'Forwarded',
                               style: AppTextStyles.labelSmall.copyWith(
-                                color: AppColors.textSecondary.withValues(alpha: 0.7),
+                                color: Colors.white60,
                                 fontStyle: FontStyle.italic,
                               ),
                             ),
@@ -117,7 +206,7 @@ class ChatBubble extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border(
+                            border: const Border(
                               left: BorderSide(
                                 color: AppColors.primaryLight,
                                 width: 3,
@@ -148,45 +237,35 @@ class ChatBubble extends StatelessWidget {
                         ),
                       ),
 
-                    // Message text + timestamp row
+                    // Message Content (Media or Text)
+                    if (isDeletedForEveryone)
+                      Text(
+                        '🚫 This message was deleted',
+                        style: AppTextStyles.chatMessage.copyWith(
+                          color: AppColors.textSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      )
+                    else
+                      _buildMessageContent(context),
+
+                    const SizedBox(height: 4),
+
+                    // Timestamp + status row below content for cleaner layout
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Flexible(
-                          child: Text(
-                            isDeletedForEveryone
-                                ? '🚫 This message was deleted'
-                                : text,
-                            style: AppTextStyles.chatMessage.copyWith(
-                              color: isDeletedForEveryone
-                                  ? AppColors.textSecondary
-                                  : AppColors.textPrimary,
-                              fontStyle: isDeletedForEveryone
-                                  ? FontStyle.italic
-                                  : FontStyle.normal,
-                            ),
+                        Text(
+                          DateFormatter.formatMessageTime(timestamp),
+                          style: AppTextStyles.chatTimestamp.copyWith(
+                            color: isSent ? Colors.white60 : AppColors.textHint,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        // Timestamp + status
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              DateFormatter.formatMessageTime(timestamp),
-                              style: AppTextStyles.chatTimestamp.copyWith(
-                                color: isSent
-                                    ? Colors.white.withValues(alpha: 0.6)
-                                    : AppColors.textHint,
-                              ),
-                            ),
-                            if (isSent) ...[
-                              const SizedBox(width: 3),
-                              _buildStatusIcon(),
-                            ],
-                          ],
-                        ),
+                        if (isSent) ...[
+                          const SizedBox(width: 4),
+                          _buildStatusIcon(),
+                        ],
                       ],
                     ),
                   ],
@@ -230,16 +309,158 @@ class ChatBubble extends StatelessWidget {
     );
   }
 
+  Widget _buildMessageContent(BuildContext context) {
+    switch (type) {
+      case MessageType.image:
+        return mediaUrl != null && mediaUrl!.isNotEmpty
+            ? GestureDetector(
+                onTap: () => _showImagePreview(context, mediaUrl!),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: Image.network(
+                      mediaUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(Icons.broken_image, color: Colors.white54, size: 40),
+                      ),
+                      loadingBuilder: (_, child, progress) {
+                        if (progress == null) return child;
+                        return Container(
+                          height: 150,
+                          color: Colors.black12,
+                          child: const Center(
+                            child: CircularProgressIndicator(color: AppColors.primary),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              )
+            : const SizedBox.shrink();
+
+      case MessageType.video:
+        return GestureDetector(
+          onTap: () => _downloadFile(context),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.play_circle_fill, color: Colors.white, size: 36),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        fileName ?? 'Video File',
+                        style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (fileSize != null)
+                        Text(
+                          _formatFileSize(fileSize!),
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+      case MessageType.voiceNote:
+        return voiceNoteUrl != null
+            ? VoiceMessageBubble(
+                url: voiceNoteUrl!,
+                isSent: isSent,
+                durationSeconds: voiceNoteDuration,
+              )
+            : const SizedBox.shrink();
+
+      case MessageType.file:
+        return Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.insert_drive_file, color: AppColors.primaryLight, size: 36),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      fileName ?? 'Document',
+                      style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (fileSize != null)
+                      Text(
+                        _formatFileSize(fileSize!),
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.download_rounded, color: Colors.white70),
+                onPressed: () => _downloadFile(context),
+              ),
+            ],
+          ),
+        );
+
+      case MessageType.system:
+        return Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              text,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary, fontStyle: FontStyle.italic),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        );
+
+      case MessageType.text:
+        return Text(
+          text,
+          style: AppTextStyles.chatMessage.copyWith(
+            color: AppColors.textPrimary,
+          ),
+        );
+    }
+  }
+
   Widget _buildStatusIcon() {
     switch (status) {
       case MessageStatus.sending:
-        return const Icon(Icons.access_time, size: 14, color: Colors.white54);
+        return const Icon(Icons.access_time, size: 13, color: Colors.white54);
       case MessageStatus.sent:
-        return const Icon(Icons.check, size: 14, color: Colors.white54);
+        return const Icon(Icons.check, size: 13, color: Colors.white54);
       case MessageStatus.delivered:
-        return const Icon(Icons.done_all, size: 14, color: Colors.white54);
+        return const Icon(Icons.done_all, size: 13, color: Colors.white54);
       case MessageStatus.seen:
-        return const Icon(Icons.done_all, size: 14, color: AppColors.accent);
+        return const Icon(Icons.done_all, size: 13, color: AppColors.accent);
     }
   }
 }

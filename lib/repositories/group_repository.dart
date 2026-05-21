@@ -66,14 +66,18 @@ class GroupRepository {
     required String groupId, required String senderId, required String senderName,
     required String text, MessageType type = MessageType.text,
     String? replyTo, String? replyToText, String? replyToSender,
-    String? voiceNoteUrl, int? voiceNoteDuration, List<String> mentions = const [],
+    String? voiceNoteUrl, int? voiceNoteDuration,
+    String? mediaUrl, String? fileName, int? fileSize,
+    List<String> mentions = const [],
   }) async {
     final msgId = _uuid.v4();
     final message = MessageModel(
       id: msgId, chatId: groupId, senderId: senderId, senderName: senderName,
       text: text, type: type, status: MessageStatus.sent, timestamp: DateTime.now(),
       replyTo: replyTo, replyToText: replyToText, replyToSender: replyToSender,
-      voiceNoteUrl: voiceNoteUrl, voiceNoteDuration: voiceNoteDuration, mentions: mentions,
+      voiceNoteUrl: voiceNoteUrl, voiceNoteDuration: voiceNoteDuration,
+      mediaUrl: mediaUrl, fileName: fileName, fileSize: fileSize,
+      mentions: mentions,
     );
 
     await _dbService.insertRow(
@@ -81,11 +85,22 @@ class GroupRepository {
       data: message.toDbMap(),
     );
 
+    String lastMsgText = text;
+    if (type == MessageType.voiceNote) {
+      lastMsgText = '🎤 Voice note';
+    } else if (type == MessageType.image) {
+      lastMsgText = '📷 Photo';
+    } else if (type == MessageType.video) {
+      lastMsgText = '🎥 Video';
+    } else if (type == MessageType.file) {
+      lastMsgText = '📁 ${fileName ?? 'Document'}';
+    }
+
     await _dbService.updateRow(
       table: FirestoreConstants.groupsCollection,
       id: groupId,
       data: {
-        'lastMessage': type == MessageType.voiceNote ? '🎤 Voice note' : text,
+        'lastMessage': lastMsgText,
         'lastMessageTime': DateTime.now().toUtc().toIso8601String(),
         'lastMessageSender': senderName,
       },
@@ -102,10 +117,11 @@ class GroupRepository {
         .map((list) => list.map((e) => MessageModel.fromMap(e)).toList());
   }
 
-  Future<void> updateGroupDetails(String groupId, {String? name, String? description}) async {
+  Future<void> updateGroupDetails(String groupId, {String? name, String? description, String? groupImage}) async {
     final data = <String, dynamic>{};
     if (name != null) data['groupName'] = name;
     if (description != null) data['groupDescription'] = description;
+    if (groupImage != null) data['groupImage'] = groupImage;
     
     if (data.isNotEmpty) {
       await _dbService.updateRow(table: FirestoreConstants.groupsCollection, id: groupId, data: data);
@@ -135,5 +151,25 @@ class GroupRepository {
       final admins = List<String>.from(group.admins)..add(uid);
       await _dbService.updateRow(table: FirestoreConstants.groupsCollection, id: groupId, data: {'admins': admins});
     }
+  }
+
+  Future<List<GroupModel>> getGroupsInCommon(String uid1, String uid2) async {
+    try {
+      final response = await _dbService.db
+          .from(FirestoreConstants.groupsCollection)
+          .select()
+          .contains('members', [uid1, uid2]);
+      return (response as List).map((e) => GroupModel.fromMap(e)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<void> editGroupMessage(String messageId, String newText) async {
+    await _dbService.updateRow(
+      table: 'messages',
+      id: messageId,
+      data: {'text': newText},
+    );
   }
 }
