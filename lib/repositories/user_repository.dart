@@ -81,7 +81,7 @@ class UserRepository {
   Future<List<UserModel>> searchUsers(String query) async {
     if (query.trim().isEmpty) return [];
 
-    final currentUid = SupabaseService().auth.currentUser?.id;
+    final currentUid = _dbService.client.auth.currentUser?.id;
 
     // Simple ilike search on Supabase across username, display_name, and email
     final response = await _dbService.db

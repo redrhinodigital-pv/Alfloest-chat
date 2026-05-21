@@ -60,7 +60,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
   Widget build(BuildContext context) {
     // Listen for state changes while splash is active to handle quick transitions
     ref.listen(authStateProvider, (previous, next) {
-      if (next.hasData && next.value != null && mounted) {
+      if (next.hasValue && next.value != null && mounted) {
         Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
       }
     });

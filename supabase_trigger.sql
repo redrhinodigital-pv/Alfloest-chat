@@ -9,10 +9,12 @@
 -- 1. Create the `profiles` table (if it doesn't exist already)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-  username text,
-  full_name text,
+  username text UNIQUE NOT null,
+  email text NOT null,
+  display_name text,
   avatar_url text,
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT null,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT null
 );
 
 -- 2. Enable Row Level Security (RLS) on the new table
@@ -30,7 +32,7 @@ ON public.profiles FOR UPDATE
 USING (auth.uid() = id);
 
 -- 4. Create the Trigger Function
--- This function extracts the Google user metadata (like full_name and avatar_url) 
+-- This function extracts the Google/Email user metadata (like username, display_name and avatar_url) 
 -- and auto-inserts them into our public.profiles table.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
@@ -38,14 +40,16 @@ LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username, full_name, avatar_url)
+  INSERT INTO public.profiles (id, username, email, display_name, avatar_url)
   VALUES (
     NEW.id,
-    -- Extract username from email (e.g. john.doe@gmail.com -> john.doe) if username isn't explicitly provided
-    COALESCE(NEW.raw_user_meta_data->>'user_name', split_part(NEW.email, '@', 1)),
-    -- Extract Google's full_name
-    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-    -- Extract Google's avatar_url
+    -- Extract username from metadata or use email part (e.g. john.doe@gmail.com -> john.doe)
+    COALESCE(NEW.raw_user_meta_data->>'username', NEW.raw_user_meta_data->>'user_name', split_part(NEW.email, '@', 1)),
+    -- Extract email
+    COALESCE(NEW.email, ''),
+    -- Extract display name (Google's full_name or username)
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+    -- Extract avatar_url
     COALESCE(NEW.raw_user_meta_data->>'avatar_url', '')
   );
   RETURN NEW;

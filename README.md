@@ -3,8 +3,7 @@
 
 ## Prerequisites
 
-- Flutter SDK (latest version recommended)
-- Supabase account and project
+
 
 ## Getting Started
 

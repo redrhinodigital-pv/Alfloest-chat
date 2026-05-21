@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/auth/login_screen.dart';
-import '../screens/auth/otp_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/settings/settings_screen.dart';
@@ -16,7 +15,6 @@ class AppRouter {
   static const String splash = '/';
   static const String onboarding = '/onboarding';
   static const String login = '/login';
-  static const String otp = '/otp';
   static const String home = '/home';
   static const String profile = '/profile';
   static const String settings = '/settings';
@@ -31,8 +29,6 @@ class AppRouter {
         return _slideRoute(const OnboardingScreen());
       case login:
         return _slideRoute(const LoginScreen());
-      case otp:
-        return _slideRoute(const OtpScreen());
       case home:
         return _fadeRoute(const HomeScreen());
       case profile:

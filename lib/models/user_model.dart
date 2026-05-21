@@ -73,7 +73,7 @@ class UserModel {
   /// Convert to Map for Supabase DB
   Map<String, dynamic> toDbMap() {
     return {
-      'uid': uid,
+      'id': uid,
       'display_name': displayName,
       'username': username,
       'email': email,
