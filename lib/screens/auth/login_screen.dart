@@ -126,7 +126,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       children: [
                         _buildTextField(
                           controller: _emailController,
-                          hintText: 'Email address',
+                          hintText: 'Email or Username',
                           icon: Icons.alternate_email_rounded,
                           keyboardType: TextInputType.emailAddress,
                         ),
@@ -178,6 +178,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                  
+                  // Divider
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.2))),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text('OR', style: AppTextStyles.bodySmall.copyWith(color: Colors.white54)),
+                      ),
+                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.2))),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 24),
+
+                  // Google Auth Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: authState.isLoading ? null : () {
+                        ref.read(authViewModelProvider.notifier).signInWithGoogle();
+                      },
+                      icon: authState.isLoading 
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2))
+                          : const Icon(Icons.g_mobiledata_rounded, size: 28, color: AppColors.surface),
+                      label: Text(
+                        'Continue with Google',
+                        style: AppTextStyles.button.copyWith(color: AppColors.surface, fontSize: 16),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppColors.surface,
+                        elevation: 4,
+                        shadowColor: Colors.black26,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
                     ),
                   ),
                 ],

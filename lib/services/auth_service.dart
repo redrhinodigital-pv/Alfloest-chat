@@ -24,6 +24,21 @@ class AuthService {
   bool get isSignedIn => _supabase.auth.currentUser != null;
 
 
+  // ─────────────────────────────────────────────
+  // Google OAuth Auth
+  // ─────────────────────────────────────────────
+
+  /// Sign in with Google securely across Web and Native.
+  Future<void> signInWithGoogle() async {
+    try {
+      await _supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: kIsWeb ? Uri.base.origin : 'io.supabase.alfloest://login-callback/',
+      );
+    } catch (e) {
+      throw AppAuthException('Google sign-in failed: $e', originalError: e);
+    }
+  }
 
   // ─────────────────────────────────────────────
   // Email/Password Auth

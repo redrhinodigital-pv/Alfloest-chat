@@ -16,7 +16,9 @@ class AuthRepository {
   bool get isSignedIn => _authService.isSignedIn;
   Stream<AuthState> get authStateChanges => _authService.authStateChanges;
 
-
+  Future<void> signInWithGoogle() async {
+    await _authService.signInWithGoogle();
+  }
 
   Future<void> signInWithEmailPassword(String email, String password) async {
     await _authService.signInWithEmailPassword(email, password);

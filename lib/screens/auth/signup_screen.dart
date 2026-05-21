@@ -17,12 +17,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   @override
   void dispose() {
     _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -30,8 +32,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
     
     if (username.isEmpty || email.isEmpty || password.isEmpty) return;
+    
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Passwords do not match.', style: AppTextStyles.bodyMedium.copyWith(color: Colors.white)),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
     
     ref.read(authViewModelProvider.notifier).signUpWithEmailPassword(email, password, username);
   }
@@ -146,6 +159,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           icon: Icons.lock_outline_rounded,
                           obscureText: true,
                         ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          controller: _confirmPasswordController,
+                          hintText: 'Confirm Password',
+                          icon: Icons.lock_outline_rounded,
+                          obscureText: true,
+                        ),
                         const SizedBox(height: 24),
                         
                         // Submit Button
@@ -163,7 +183,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             child: authState.isLoading 
                               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                               : Text(
-                                  'Sign Up',
+                                  'Create Account',
                                   style: AppTextStyles.button.copyWith(fontSize: 16, color: Colors.white),
                                 ),
                           ),

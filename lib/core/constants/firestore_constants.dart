@@ -12,21 +12,21 @@ class FirestoreConstants {
 
   // ── User Fields ──
   static const String uid = 'uid';
-  static const String displayName = 'displayName';
+  static const String displayName = 'display_name';
   static const String username = 'username';
   static const String email = 'email';
   static const String phone = 'phone';
-  static const String photoUrl = 'photoUrl';
+  static const String photoUrl = 'avatar_url';
   static const String bio = 'bio';
-  static const String isOnline = 'isOnline';
-  static const String lastSeen = 'lastSeen';
-  static const String darkMode = 'darkMode';
-  static const String hideOnline = 'hideOnline';
-  static const String hideLastSeen = 'hideLastSeen';
-  static const String blockedUsers = 'blockedUsers';
-  static const String createdAt = 'createdAt';
-  static const String updatedAt = 'updatedAt';
-  static const String fcmToken = 'fcmToken';
+  static const String isOnline = 'is_online';
+  static const String lastSeen = 'last_seen';
+  static const String darkMode = 'dark_mode';
+  static const String hideOnline = 'hide_online';
+  static const String hideLastSeen = 'hide_last_seen';
+  static const String blockedUsers = 'blocked_users';
+  static const String createdAt = 'created_at';
+  static const String updatedAt = 'updated_at';
+  static const String fcmToken = 'fcm_token';
 
   // ── Chat Fields ──
   static const String participants = 'participants';

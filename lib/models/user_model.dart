@@ -40,32 +40,32 @@ class UserModel {
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
       uid: map['uid'] ?? map['id'] ?? '',
-      displayName: map['displayName'] ?? '',
+      displayName: map['displayName'] ?? map['display_name'] ?? '',
       username: map['username'] ?? '',
       email: map['email'] ?? '',
       phone: map['phone'] ?? '',
-      photoUrl: map['photoUrl'] ?? '',
+      photoUrl: map['photoUrl'] ?? map['avatar_url'] ?? '',
       bio: map['bio'] ?? '',
-      isOnline: map['isOnline'] ?? false,
-      lastSeen: map['lastSeen'] != null
-          ? (map['lastSeen'] is int 
-              ? DateTime.fromMillisecondsSinceEpoch(map['lastSeen']) 
-              : DateTime.tryParse(map['lastSeen'].toString())?.toLocal())
+      isOnline: map['isOnline'] ?? map['is_online'] ?? false,
+      lastSeen: (map['lastSeen'] ?? map['last_seen']) != null
+          ? ((map['lastSeen'] ?? map['last_seen']) is int 
+              ? DateTime.fromMillisecondsSinceEpoch((map['lastSeen'] ?? map['last_seen'])) 
+              : DateTime.tryParse((map['lastSeen'] ?? map['last_seen']).toString())?.toLocal())
           : null,
-      darkMode: map['darkMode'] ?? true,
-      hideOnline: map['hideOnline'] ?? false,
-      hideLastSeen: map['hideLastSeen'] ?? false,
-      blockedUsers: List<String>.from(map['blockedUsers'] ?? []),
-      fcmToken: map['fcmToken'],
-      createdAt: map['createdAt'] != null 
-          ? (map['createdAt'] is int 
-              ? DateTime.fromMillisecondsSinceEpoch(map['createdAt']) 
-              : DateTime.tryParse(map['createdAt'].toString())?.toLocal() ?? DateTime.now())
+      darkMode: map['darkMode'] ?? map['dark_mode'] ?? true,
+      hideOnline: map['hideOnline'] ?? map['hide_online'] ?? false,
+      hideLastSeen: map['hideLastSeen'] ?? map['hide_last_seen'] ?? false,
+      blockedUsers: List<String>.from(map['blockedUsers'] ?? map['blocked_users'] ?? []),
+      fcmToken: map['fcmToken'] ?? map['fcm_token'],
+      createdAt: (map['createdAt'] ?? map['created_at']) != null 
+          ? ((map['createdAt'] ?? map['created_at']) is int 
+              ? DateTime.fromMillisecondsSinceEpoch((map['createdAt'] ?? map['created_at'])) 
+              : DateTime.tryParse((map['createdAt'] ?? map['created_at']).toString())?.toLocal() ?? DateTime.now())
           : DateTime.now(),
-      updatedAt: map['updatedAt'] != null 
-          ? (map['updatedAt'] is int 
-              ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt']) 
-              : DateTime.tryParse(map['updatedAt'].toString())?.toLocal() ?? DateTime.now())
+      updatedAt: (map['updatedAt'] ?? map['updated_at']) != null 
+          ? ((map['updatedAt'] ?? map['updated_at']) is int 
+              ? DateTime.fromMillisecondsSinceEpoch((map['updatedAt'] ?? map['updated_at'])) 
+              : DateTime.tryParse((map['updatedAt'] ?? map['updated_at']).toString())?.toLocal() ?? DateTime.now())
           : DateTime.now(),
     );
   }
@@ -74,21 +74,21 @@ class UserModel {
   Map<String, dynamic> toDbMap() {
     return {
       'uid': uid,
-      'displayName': displayName,
+      'display_name': displayName,
       'username': username,
       'email': email,
       'phone': phone,
-      'photoUrl': photoUrl,
+      'avatar_url': photoUrl,
       'bio': bio,
-      'isOnline': isOnline,
-      'lastSeen': lastSeen?.toUtc().toIso8601String(),
-      'darkMode': darkMode,
-      'hideOnline': hideOnline,
-      'hideLastSeen': hideLastSeen,
-      'blockedUsers': blockedUsers,
-      'fcmToken': fcmToken,
-      'createdAt': createdAt.toUtc().toIso8601String(),
-      'updatedAt': updatedAt.toUtc().toIso8601String(),
+      'is_online': isOnline,
+      'last_seen': lastSeen?.toUtc().toIso8601String(),
+      'dark_mode': darkMode,
+      'hide_online': hideOnline,
+      'hide_last_seen': hideLastSeen,
+      'blocked_users': blockedUsers,
+      'fcm_token': fcmToken,
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'updated_at': updatedAt.toUtc().toIso8601String(),
     };
   }
 
