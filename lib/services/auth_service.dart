@@ -23,22 +23,34 @@ class AuthService {
   /// Check if a user is currently signed in
   bool get isSignedIn => _supabase.auth.currentUser != null;
 
+
+
   // ─────────────────────────────────────────────
-  // Google OAuth Auth
+  // Email/Password Auth
   // ─────────────────────────────────────────────
 
-  /// Sign in with Google securely across Web and Native.
-  /// Uses Supabase's built-in OAuth flow which cleanly redirects via browser.
-  Future<void> signInWithGoogle() async {
+  /// Sign in with email and password
+  Future<void> signInWithEmailPassword(String email, String password) async {
     try {
-      await _supabase.auth.signInWithOAuth(
-        OAuthProvider.google,
-        // On Web, passing null dynamically redirects back to the current window.location.origin
-        // Ensure you configure "http://localhost:3000" or your production domain in Supabase -> Authentication -> URL Configuration
-        redirectTo: kIsWeb ? null : 'io.supabase.alfloest://login-callback/',
+      await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
       );
     } catch (e) {
-      throw AppAuthException('Google sign-in failed: $e', originalError: e);
+      throw AppAuthException('Sign-in failed: $e', originalError: e);
+    }
+  }
+
+  /// Sign up with email and password
+  Future<void> signUpWithEmailPassword(String email, String password, String username) async {
+    try {
+      await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {'username': username},
+      );
+    } catch (e) {
+      throw AppAuthException('Sign-up failed: $e', originalError: e);
     }
   }
 

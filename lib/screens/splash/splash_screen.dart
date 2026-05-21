@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_colors.dart';
@@ -22,6 +23,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late final Animation<double> _fadeIn;
   late final Animation<double> _scale;
 
+  bool _hasNavigated = false;
+  Timer? _timeoutTimer;
+
   @override
   void initState() {
     super.initState();
@@ -36,20 +40,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.6, curve: Curves.easeOut)),
     );
     _controller.forward();
-    _navigate();
+
+    // Prevent infinite loading on Web
+    _timeoutTimer = Timer(const Duration(seconds: 10), () {
+      if (mounted && !_hasNavigated) {
+        _hasNavigated = true;
+        _navigate(null); // Fallback to login if it takes too long
+      }
+    });
   }
 
-  Future<void> _navigate() async {
-    await Future.delayed(const Duration(seconds: 2));
+  void _navigate(SessionUser? user) {
     if (!mounted) return;
-
-    final authState = ref.read(authStateProvider);
+    _timeoutTimer?.cancel();
+    
     final onboardingDone = HiveService.isOnboardingComplete();
-
     Widget destination;
+    
     if (!onboardingDone) {
       destination = const OnboardingScreen();
-    } else if (authState.value != null) {
+    } else if (user != null) {
       destination = const HomeScreen();
     } else {
       destination = const LoginScreen();
@@ -68,12 +78,32 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   void dispose() {
+    _timeoutTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authStateProvider);
+
+    // Listen to auth state and navigate when it's resolved and animation is complete
+    ref.listen(authStateProvider, (previous, next) {
+      if (!next.isLoading && !_hasNavigated && _controller.isCompleted) {
+        _hasNavigated = true;
+        _navigate(next.value);
+      }
+    });
+
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (!authState.isLoading && !_hasNavigated) {
+          _hasNavigated = true;
+          _navigate(authState.value);
+        }
+      }
+    });
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.splashGradient),

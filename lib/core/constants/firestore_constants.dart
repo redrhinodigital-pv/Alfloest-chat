@@ -3,7 +3,7 @@ class FirestoreConstants {
   FirestoreConstants._();
 
   // ── Collections ──
-  static const String usersCollection = 'users';
+  static const String usersCollection = 'profiles';
   static const String chatsCollection = 'chats';
   static const String messagesSubcollection = 'messages';
   static const String groupsCollection = 'groups';

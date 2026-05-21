@@ -4,49 +4,52 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../providers/auth_provider.dart';
 import '../home/home_screen.dart';
-import 'signup_screen.dart';
 
-/// Minimal Login screen — purely Google Sign-In with glassmorphism
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+/// Minimal Signup screen with glassmorphism
+class SignupScreen extends ConsumerStatefulWidget {
+  const SignupScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _SignupScreenState extends ConsumerState<SignupScreen> {
+  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   @override
   void dispose() {
+    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   void _submit() {
+    final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     
-    if (email.isEmpty || password.isEmpty) return;
+    if (username.isEmpty || email.isEmpty || password.isEmpty) return;
     
-    ref.read(authViewModelProvider.notifier).signInWithEmailPassword(email, password);
+    ref.read(authViewModelProvider.notifier).signUpWithEmailPassword(email, password, username);
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authViewModelProvider);
     
-    // Auto-navigate to home if session gets restored while on login screen
+    // Auto-navigate to home if session gets restored while on signup screen
     ref.listen(authStateProvider, (previous, next) {
       if (next.value != null && !next.isLoading) {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).pushAndRemoveUntil(
           PageRouteBuilder(
             pageBuilder: (_, __, ___) => const HomeScreen(),
             transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
             transitionDuration: const Duration(milliseconds: 500),
           ),
+          (route) => false,
         );
       }
     });
@@ -77,15 +80,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         )
                       ],
                     ),
-                    child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 40),
+                    child: const Icon(Icons.person_add_rounded, color: Colors.white, size: 40),
                   ),
                   const SizedBox(height: 24),
 
                   // Title
-                  Text('Alfloest Chat', style: AppTextStyles.heading1.copyWith(color: Colors.white, fontSize: 28)),
+                  Text('Create Account', style: AppTextStyles.heading1.copyWith(color: Colors.white, fontSize: 28)),
                   const SizedBox(height: 8),
                   Text(
-                    'A new level of minimal,\nsecure messaging.',
+                    'Join the next generation of messaging.',
                     textAlign: TextAlign.center,
                     style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary, height: 1.4),
                   ),
@@ -125,6 +128,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Column(
                       children: [
                         _buildTextField(
+                          controller: _usernameController,
+                          hintText: 'Username',
+                          icon: Icons.person_outline_rounded,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
                           controller: _emailController,
                           hintText: 'Email address',
                           icon: Icons.alternate_email_rounded,
@@ -154,26 +163,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             child: authState.isLoading 
                               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                               : Text(
-                                  'Sign In',
+                                  'Sign Up',
                                   style: AppTextStyles.button.copyWith(fontSize: 16, color: Colors.white),
                                 ),
                           ),
                         ),
                         const SizedBox(height: 16),
                         
-                        // Toggle Button
+                        // Back to Login Button
                         TextButton(
                           onPressed: () {
-                            Navigator.push(
-                              context,
-                              PageRouteBuilder(
-                                pageBuilder: (_, __, ___) => const SignupScreen(),
-                                transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
-                              ),
-                            );
+                            Navigator.pop(context);
                           },
                           child: Text(
-                            'Need an account? Sign Up',
+                            'Already have an account? Sign In',
                             style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary),
                           ),
                         ),

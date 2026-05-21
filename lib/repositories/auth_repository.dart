@@ -16,8 +16,14 @@ class AuthRepository {
   bool get isSignedIn => _authService.isSignedIn;
   Stream<AuthState> get authStateChanges => _authService.authStateChanges;
 
-  Future<void> signInWithGoogle() async {
-    await _authService.signInWithGoogle();
+
+
+  Future<void> signInWithEmailPassword(String email, String password) async {
+    await _authService.signInWithEmailPassword(email, password);
+  }
+
+  Future<void> signUpWithEmailPassword(String email, String password, String username) async {
+    await _authService.signUpWithEmailPassword(email, password, username);
   }
 
   /// Automatically trigger profile creation/update via authStateChanges in Provider
@@ -32,10 +38,10 @@ class AuthRepository {
     if (existingData != null) {
       final userModel = UserModel.fromMap(existingData);
       
-      // Update basic fields if they changed via Google Profile
+      // Update basic fields if they changed
       final updatedModel = userModel.copyWith(
         email: user.email ?? userModel.email,
-        displayName: user.userMetadata?['full_name'] ?? userModel.displayName,
+        username: user.userMetadata?['username'] ?? userModel.username,
         photoUrl: user.userMetadata?['avatar_url'] ?? userModel.photoUrl,
         isOnline: true,
         lastSeen: DateTime.now(),
@@ -52,10 +58,12 @@ class AuthRepository {
     }
 
     // New user auto-creation
+    final username = user.userMetadata?['username'] ?? user.email?.split('@')[0] ?? uid.substring(0, 8);
+    
     final userModel = UserModel(
       uid: uid,
-      displayName: user.userMetadata?['full_name'] ?? user.email?.split('@')[0] ?? 'User',
-      username: '@${user.email?.split('@')[0] ?? uid.substring(0, 8)}',
+      displayName: username,
+      username: username,
       email: user.email ?? '',
       photoUrl: user.userMetadata?['avatar_url'] ?? '',
       createdAt: DateTime.now(),

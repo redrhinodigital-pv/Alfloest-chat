@@ -31,11 +31,22 @@ class AuthViewModel extends StateNotifier<AuthViewState> {
 
   AuthViewModel(this._repo) : super(const AuthViewState());
 
-  Future<void> signInWithGoogle() async {
+
+
+  Future<void> signInWithEmailPassword(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      await _repo.signInWithGoogle();
-      // Wait for authStateProvider stream to handle the rest
+      await _repo.signInWithEmailPassword(email, password);
+      state = state.copyWith(isLoading: false, status: AuthStatus.authenticated);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> signUpWithEmailPassword(String email, String password, String username) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _repo.signUpWithEmailPassword(email, password, username);
       state = state.copyWith(isLoading: false, status: AuthStatus.authenticated);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
