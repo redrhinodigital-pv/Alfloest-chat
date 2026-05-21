@@ -1,25 +1,5 @@
-# Alfloest Chat
 
 
-
-1. C
-   ```bash
-   git clone https://github.com/redrhinodigital-pv/Alfloest-chat.git
-   ```
-2. Navigate to the project directory:
-   ```bash
-   cd Alfloest-chat
-   ```
-3. Install dependencies:
-   ```bash
-   flutter pub get
-   ```
-4. Run the app:
-   ```bash
-   flutter run
-   ```
-
-## Database Setup
 
 To ensure the authentication architecture and search functionality works perfectly, execute the following SQL in your Supabase SQL Editor to provision the required `profiles` table and its security policies:
 
