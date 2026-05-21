@@ -1,11 +1,6 @@
 # Alfloest Chat
 
 
-## Prerequisites
-
-
-
-## Getting Started
 
 1. Clone the repository:
    ```bash
