@@ -11,7 +11,7 @@ class FirestoreConstants {
   static const String itemsSubcollection = 'items';
 
   // ── User Fields ──
-  static const String uid = 'uid';
+  static const String uid = 'id';
   static const String displayName = 'display_name';
   static const String username = 'username';
   static const String email = 'email';

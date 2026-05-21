@@ -81,11 +81,14 @@ class UserRepository {
   Future<List<UserModel>> searchUsers(String query) async {
     if (query.trim().isEmpty) return [];
 
-    // Simple ilike search on Supabase
+    final currentUid = SupabaseService().auth.currentUser?.id;
+
+    // Simple ilike search on Supabase across username, display_name, and email
     final response = await _dbService.db
         .from(FirestoreConstants.usersCollection)
         .select()
-        .or('username.ilike.%$query%,displayName.ilike.%$query%')
+        .or('username.ilike.%$query%,display_name.ilike.%$query%,email.ilike.%$query%')
+        .neq('id', currentUid ?? '') // Exclude current user
         .limit(20);
 
     return (response as List).map((e) => UserModel.fromMap(e)).toList();

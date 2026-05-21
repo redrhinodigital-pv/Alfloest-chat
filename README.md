@@ -1,17 +1,5 @@
 # Alfloest Chat
 
-A beautiful, highly-responsive, and secure real-time messaging application built with Flutter and Supabase.
-
-## Features
-
-- **Real-time Messaging**: Instant message delivery powered by Supabase Realtime.
-- **Premium UI**: Stunning, modern, violet glassmorphism design with responsive layouts for Mobile, Tablet, Desktop, and Web.
-- **Authentication Architecture**:
-  - Secure Email/Password Sign-up and Login.
-  - Option to login via Google OAuth (Web and Native).
-  - Built-in UI validations (e.g. Confirm Password matching).
-- **Public Profiles**: Automatic provisioning of user profiles into a strict, `snake_case` formatted `profiles` table to keep Auth and User data perfectly segregated.
-- **Clean Architecture**: Built utilizing Riverpod for robust and scalable state management.
 
 ## Prerequisites
 
@@ -39,15 +27,15 @@ A beautiful, highly-responsive, and secure real-time messaging application built
 
 ## Database Setup
 
-To ensure the authentication architecture works perfectly, execute the following SQL in your Supabase SQL Editor to provision the required `profiles` table and its security policies:
+To ensure the authentication architecture and search functionality works perfectly, execute the following SQL in your Supabase SQL Editor to provision the required `profiles` table and its security policies:
 
 ```sql
 -- Drop any old tables
 drop table if exists public.profiles cascade;
 
--- Create the profiles table
+-- Create the profiles table using 'id' as primary key
 create table public.profiles (
-  uid uuid references auth.users not null primary key,
+  id uuid references auth.users not null primary key,
   username text unique not null,
   email text not null,
   display_name text,
@@ -72,8 +60,8 @@ create policy "Public profiles are viewable by everyone." on public.profiles
   for select using (true);
 
 create policy "Users can insert their own profile." on public.profiles
-  for insert with check (auth.uid() = uid);
+  for insert with check (auth.uid() = id);
 
 create policy "Users can update own profile." on public.profiles
-  for update using (auth.uid() = uid);
+  for update using (auth.uid() = id);
 ```

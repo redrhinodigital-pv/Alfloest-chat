@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_colors.dart';
@@ -18,10 +19,13 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _searchController = TextEditingController();
+  Timer? _debounce;
+  String _searchQuery = '';
 
   @override
   void dispose() {
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -34,7 +38,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         title: TextField(
           controller: _searchController,
           autofocus: true,
-          onChanged: (_) => setState(() {}),
+          onChanged: (val) {
+            if (_debounce?.isActive ?? false) _debounce!.cancel();
+            _debounce = Timer(const Duration(milliseconds: 500), () {
+              setState(() {
+                _searchQuery = val;
+              });
+            });
+          },
           style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: 'Search users...',
@@ -48,12 +59,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               icon: const Icon(Icons.clear),
               onPressed: () {
                 _searchController.clear();
-                setState(() {});
+                setState(() {
+                  _searchQuery = '';
+                });
               },
             ),
         ],
       ),
-      body: _searchController.text.isEmpty
+      body: _searchQuery.isEmpty
           ? Center(child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -67,7 +80,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildResults(String uid) {
-    final searchAsync = ref.watch(userSearchProvider(_searchController.text));
+    final searchAsync = ref.watch(userSearchProvider(_searchQuery));
 
     return searchAsync.when(
       loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
