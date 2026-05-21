@@ -9,6 +9,7 @@ import '../../widgets/avatar_widget.dart';
 import '../../widgets/gradient_button.dart';
 import '../../core/utils/validators.dart';
 import '../../services/storage_service.dart';
+import '../../services/compression_service.dart';
 
 /// Profile screen — view and edit user profile
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -35,8 +36,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (uid == null) return;
       
       setState(() => _isSaving = true);
+      
+      final originalBytes = await image.readAsBytes();
+      final compressedBytes = await ref.read(compressionServiceProvider).compressImage(
+        filePath: image.path,
+        originalBytes: originalBytes,
+      );
+
       final storage = ref.read(storageServiceProvider);
-      final downloadUrl = await storage.uploadAvatar(filePath: image.path, userId: uid);
+      final downloadUrl = await storage.uploadAvatar(
+        filePath: image.path,
+        bytes: compressedBytes,
+        userId: uid,
+      );
       
       await ref.read(userRepositoryProvider).updateProfile(uid: uid, photoUrl: downloadUrl);
       setState(() => _isSaving = false);

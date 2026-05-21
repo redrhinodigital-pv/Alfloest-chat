@@ -11,6 +11,7 @@ import '../../widgets/gradient_button.dart';
 import '../../services/hive_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/supabase_service.dart';
+import '../../services/compression_service.dart';
 import '../../models/group_model.dart';
 
 class GroupDetailsScreen extends ConsumerStatefulWidget {
@@ -50,8 +51,15 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
 
     setState(() => _isUploadingImage = true);
     try {
+      final originalBytes = await pickedFile.readAsBytes();
+      final compressedBytes = await ref.read(compressionServiceProvider).compressImage(
+        filePath: pickedFile.path,
+        originalBytes: originalBytes,
+      );
+
       final downloadUrl = await ref.read(storageServiceProvider).uploadGroupAvatar(
             filePath: pickedFile.path,
+            bytes: compressedBytes,
             groupId: widget.groupId,
           );
       await ref.read(groupRepositoryProvider).updateGroupDetails(widget.groupId, groupImage: downloadUrl);

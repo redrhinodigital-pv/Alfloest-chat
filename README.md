@@ -8,11 +8,7 @@ To ensure the authentication architecture and search functionality works perfect
 drop table if exists public.profiles cascade;
 
 -- Create the profiles table using 'id' as primary key
-create table public.profiles (
-  id uuid references auth.users not null primary key,
-  username text unique not null,
-  email text not null,
-  display_name text,
+
   phone text,
   avatar_url text,
   bio text,

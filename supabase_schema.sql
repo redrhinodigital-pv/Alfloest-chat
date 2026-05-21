@@ -142,17 +142,28 @@ ON public.groups FOR INSERT
 WITH CHECK (auth.uid() = ANY(members));
 
 -- MESSAGES POLICIES
+-- Fix Realtime Message Join Issue
+-- Realtime cannot evaluate policies with subqueries/joins on tables.
+-- We solve this using a Security Definer function to query membership.
+CREATE OR REPLACE FUNCTION public.is_member_of_chat(chat_id uuid, user_id uuid)
+RETURNS boolean
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.chats 
+    WHERE id = chat_id AND user_id = ANY(participants)
+  ) OR EXISTS (
+    SELECT 1 FROM public.groups 
+    WHERE id = chat_id AND user_id = ANY(members)
+  );
+END;
+$$ LANGUAGE plpgsql;
+
 DROP POLICY IF EXISTS "Users can view messages in their chats" ON public.messages;
 CREATE POLICY "Users can view messages in their chats" 
 ON public.messages FOR SELECT 
-USING (
-  EXISTS (
-    SELECT 1 FROM public.chats WHERE id = "chatId" AND auth.uid() = ANY(participants)
-  ) OR 
-  EXISTS (
-    SELECT 1 FROM public.groups WHERE id = "chatId" AND auth.uid() = ANY(members)
-  )
-);
+USING (public.is_member_of_chat("chatId", auth.uid()));
 
 DROP POLICY IF EXISTS "Users can insert messages in their chats" ON public.messages;
 CREATE POLICY "Users can insert messages in their chats" 

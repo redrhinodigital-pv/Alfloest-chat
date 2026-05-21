@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +19,7 @@ import '../../widgets/emoji_reaction.dart';
 import '../../services/storage_service.dart';
 import '../../services/audio_service.dart';
 import '../../services/supabase_service.dart';
+import '../../services/compression_service.dart';
 import './group_details_screen.dart';
 
 class GroupChatScreen extends ConsumerStatefulWidget {
@@ -100,6 +101,39 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     }
   }
 
+  String _lookupMimeType(String name) {
+    final ext = name.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'pdf':
+        return 'application/pdf';
+      case 'doc':
+      case 'docx':
+        return 'application/msword';
+      case 'xls':
+      case 'xlsx':
+        return 'application/vnd.ms-excel';
+      case 'zip':
+        return 'application/zip';
+      case 'mp3':
+        return 'audio/mpeg';
+      case 'wav':
+        return 'audio/wav';
+      case 'mp4':
+        return 'video/mp4';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
   Future<void> _pickAndSendMedia(MessageType type) async {
     final uid = ref.read(authStateProvider).value?.uid;
     if (uid == null) return;
@@ -110,6 +144,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     String? name;
     int? size;
     String mimeType = 'application/octet-stream';
+    Uint8List? uploadBytes;
 
     try {
       if (type == MessageType.image) {
@@ -119,6 +154,12 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
           filePath = file.path;
           name = file.name;
           mimeType = 'image/jpeg';
+          final originalBytes = await file.readAsBytes();
+          uploadBytes = await ref.read(compressionServiceProvider).compressImage(
+            filePath: file.path,
+            originalBytes: originalBytes,
+          );
+          size = uploadBytes.length;
         }
       } else if (type == MessageType.video) {
         final picker = ImagePicker();
@@ -127,23 +168,44 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
           filePath = file.path;
           name = file.name;
           mimeType = 'video/mp4';
+          final originalBytes = await file.readAsBytes();
+          final compressResult = await ref.read(compressionServiceProvider).compressVideo(
+            filePath: file.path,
+            originalBytes: originalBytes,
+          );
+          filePath = compressResult.filePath ?? file.path;
+          uploadBytes = compressResult.bytes;
+          size = uploadBytes.length;
         }
       } else if (type == MessageType.file) {
         final result = await FilePicker.pickFiles();
-        if (result != null && result.files.single.path != null) {
+        if (result != null && result.files.isNotEmpty) {
           final file = result.files.single;
           filePath = file.path;
           name = file.name;
           size = file.size;
+          final pickedBytes = file.bytes;
+          if (pickedBytes == null && file.path != null) {
+            uploadBytes = await io.File(file.path!).readAsBytes();
+          } else {
+            uploadBytes = pickedBytes;
+          }
+          mimeType = _lookupMimeType(name);
         }
       }
 
-      if (filePath == null || name == null) return;
+      if (name == null) return;
+      if (uploadBytes == null && filePath != null) {
+        uploadBytes = await io.File(filePath).readAsBytes();
+      }
+      if (uploadBytes == null) return;
+      size ??= uploadBytes.length;
 
       setState(() => _isUploading = true);
 
       final downloadUrl = await ref.read(storageServiceProvider).uploadMedia(
             filePath: filePath,
+            bytes: uploadBytes,
             chatId: widget.groupId,
             fileName: name,
             mimeType: mimeType,
@@ -157,7 +219,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
             type: type,
             mediaUrl: downloadUrl,
             fileName: name,
-            fileSize: size ?? (await File(filePath).length()),
+            fileSize: size,
             replyTo: _replyTo?.id,
             replyToText: _replyTo?.text,
             replyToSender: _replyTo?.senderName,
@@ -210,6 +272,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       final msgId = const Uuid().v4();
       final downloadUrl = await ref.read(storageServiceProvider).uploadVoiceNote(
             filePath: path,
+            bytes: null,
             chatId: widget.groupId,
             messageId: msgId,
           );
