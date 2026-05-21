@@ -44,13 +44,13 @@ class UserRepository {
     String? photoUrl,
   }) async {
     final data = <String, dynamic>{
-      'updatedAt': DateTime.now().toUtc().toIso8601String(),
+      FirestoreConstants.updatedAt: DateTime.now().toUtc().toIso8601String(),
     };
 
-    if (displayName != null) data['displayName'] = displayName;
-    if (username != null) data['username'] = username;
-    if (bio != null) data['bio'] = bio;
-    if (photoUrl != null) data['photoUrl'] = photoUrl;
+    if (displayName != null) data[FirestoreConstants.displayName] = displayName;
+    if (username != null) data[FirestoreConstants.username] = username;
+    if (bio != null) data[FirestoreConstants.bio] = bio;
+    if (photoUrl != null) data[FirestoreConstants.photoUrl] = photoUrl;
 
     await _dbService.updateRow(
       table: FirestoreConstants.usersCollection,
@@ -64,8 +64,8 @@ class UserRepository {
       table: FirestoreConstants.usersCollection,
       id: uid,
       data: {
-        'isOnline': isOnline,
-        'lastSeen': DateTime.now().toUtc().toIso8601String(),
+        FirestoreConstants.isOnline: isOnline,
+        FirestoreConstants.lastSeen: DateTime.now().toUtc().toIso8601String(),
       },
     );
   }
@@ -74,7 +74,7 @@ class UserRepository {
     await _dbService.updateRow(
       table: FirestoreConstants.usersCollection,
       id: uid,
-      data: {'fcmToken': token},
+      data: {FirestoreConstants.fcmToken: token},
     );
   }
 
@@ -100,8 +100,8 @@ class UserRepository {
     bool? hideLastSeen,
   }) async {
     final data = <String, dynamic>{};
-    if (hideOnline != null) data['hideOnline'] = hideOnline;
-    if (hideLastSeen != null) data['hideLastSeen'] = hideLastSeen;
+    if (hideOnline != null) data[FirestoreConstants.hideOnline] = hideOnline;
+    if (hideLastSeen != null) data[FirestoreConstants.hideLastSeen] = hideLastSeen;
     if (data.isNotEmpty) {
       await _dbService.updateRow(
         table: FirestoreConstants.usersCollection,
@@ -122,7 +122,7 @@ class UserRepository {
       await _dbService.updateRow(
         table: FirestoreConstants.usersCollection,
         id: uid,
-        data: {'blockedUsers': blocked},
+        data: {FirestoreConstants.blockedUsers: blocked},
       );
     }
   }
@@ -134,7 +134,7 @@ class UserRepository {
       await _dbService.updateRow(
         table: FirestoreConstants.usersCollection,
         id: uid,
-        data: {'blockedUsers': blocked},
+        data: {FirestoreConstants.blockedUsers: blocked},
       );
     }
   }
@@ -143,7 +143,7 @@ class UserRepository {
     await _dbService.updateRow(
       table: FirestoreConstants.usersCollection,
       id: uid,
-      data: {'darkMode': darkMode},
+      data: {FirestoreConstants.darkMode: darkMode},
     );
     await HiveService.setDarkMode(darkMode);
   }
