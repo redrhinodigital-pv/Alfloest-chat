@@ -2,7 +2,7 @@
 
 
 
-1. Clone the repository:
+1. C
    ```bash
    git clone https://github.com/redrhinodigital-pv/Alfloest-chat.git
    ```
