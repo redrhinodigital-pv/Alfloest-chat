@@ -38,22 +38,22 @@ class GroupRepository {
   }
 
   Stream<List<GroupModel>> streamGroups(String uid) {
-    return _dbService.db
+    return StreamUtils.retryStream(() => _dbService.db
         .from(FirestoreConstants.groupsCollection)
         .stream(primaryKey: ['id'])
         .order('lastMessageTime', ascending: false)
         .map((list) => list
             .where((g) => (g['members'] as List).contains(uid))
             .map((e) => GroupModel.fromMap(e))
-            .toList());
+            .toList()));
   }
 
   Stream<GroupModel?> streamGroup(String groupId) {
-    return _dbService.db
+    return StreamUtils.retryStream(() => _dbService.db
         .from(FirestoreConstants.groupsCollection)
         .stream(primaryKey: ['id'])
         .eq('id', groupId)
-        .map((list) => list.isNotEmpty ? GroupModel.fromMap(list.first) : null);
+        .map((list) => list.isNotEmpty ? GroupModel.fromMap(list.first) : null));
   }
 
   Future<GroupModel?> getGroup(String groupId) async {
@@ -108,13 +108,13 @@ class GroupRepository {
   }
 
   Stream<List<MessageModel>> streamGroupMessages(String groupId, {int limit = 30}) {
-    return _dbService.db
+    return StreamUtils.retryStream(() => _dbService.db
         .from('messages')
         .stream(primaryKey: ['id'])
         .eq('chatId', groupId)
         .order('timestamp', ascending: false)
         .limit(limit)
-        .map((list) => list.map((e) => MessageModel.fromMap(e)).toList());
+        .map((list) => list.map((e) => MessageModel.fromMap(e)).toList()));
   }
 
   Future<void> updateGroupDetails(String groupId, {String? name, String? description, String? groupImage}) async {

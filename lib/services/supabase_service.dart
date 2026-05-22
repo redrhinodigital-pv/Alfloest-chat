@@ -1,8 +1,90 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Riverpod provider for SupabaseService
 final supabaseServiceProvider = Provider<SupabaseService>((ref) => SupabaseService());
+
+/// Helper utility for handling streams with automatic retry logic
+class StreamUtils {
+  /// Wraps a stream callback with automatic retry logic on error/timeout.
+  /// Suppresses raw errors from propagating to the UI directly.
+  static Stream<T> retryStream<T>(
+    Stream<T> Function() streamFactory, {
+    Duration delay = const Duration(seconds: 3),
+    int? maxRetries,
+  }) {
+    late StreamController<T> controller;
+    StreamSubscription<T>? subscription;
+    int attempt = 0;
+    bool isClosed = false;
+
+    void startListening() {
+      if (isClosed) return;
+      
+      try {
+        final stream = streamFactory();
+        subscription = stream.listen(
+          (data) {
+            attempt = 0; // Reset attempt count on successful data
+            if (!controller.isClosed) {
+              controller.add(data);
+            }
+          },
+          onError: (error) {
+            debugPrint('StreamUtils: Error in stream (attempt $attempt): $error');
+            subscription?.cancel();
+            
+            if (isClosed || controller.isClosed) return;
+
+            attempt++;
+            if (maxRetries != null && attempt >= maxRetries) {
+              controller.addError(error);
+              return;
+            }
+
+            Future.delayed(delay, () {
+              startListening();
+            });
+          },
+          onDone: () {
+            if (!controller.isClosed) {
+              controller.close();
+            }
+          },
+          cancelOnError: false,
+        );
+      } catch (e) {
+        debugPrint('StreamUtils: Exception creating stream (attempt $attempt): $e');
+        if (isClosed || controller.isClosed) return;
+        
+        attempt++;
+        if (maxRetries != null && attempt >= maxRetries) {
+          controller.addError(e);
+          return;
+        }
+        
+        Future.delayed(delay, () {
+          startListening();
+        });
+      }
+    }
+
+    controller = StreamController<T>(
+      onListen: () {
+        attempt = 0;
+        startListening();
+      },
+      onCancel: () {
+        isClosed = true;
+        subscription?.cancel();
+      },
+    );
+
+    return controller.stream;
+  }
+}
 
 /// Supabase Database Core Service — Generic CRUD operations wrapper
 class SupabaseService {

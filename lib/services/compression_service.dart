@@ -1,7 +1,6 @@
 import 'dart:io' as io;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:video_compress/video_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -51,57 +50,4 @@ class CompressionService {
     }
     return originalBytes;
   }
-
-  /// Compress video
-  /// - Reduces bitrate intelligently
-  /// - Target size: 10MB - 20MB
-  /// Returns a map with compressed file path (null if web) and bytes.
-  Future<CompressedVideoResult> compressVideo({
-    required String filePath,
-    required Uint8List originalBytes,
-  }) async {
-    if (kIsWeb) {
-      // Video compression not supported on web
-      return CompressedVideoResult(
-        filePath: null,
-        bytes: originalBytes,
-      );
-    }
-
-    try {
-      // Start compression using video_compress
-      final MediaInfo? mediaInfo = await VideoCompress.compressVideo(
-        filePath,
-        quality: VideoQuality.MediumQuality,
-        deleteOrigin: false, // Do not delete user's original video
-        includeAudio: true,
-      );
-
-      if (mediaInfo != null && mediaInfo.file != null) {
-        final compressedFile = mediaInfo.file!;
-        final bytes = await compressedFile.readAsBytes();
-        return CompressedVideoResult(
-          filePath: compressedFile.path,
-          bytes: bytes,
-        );
-      }
-    } catch (e) {
-      debugPrint('Video compression failed, falling back to original: $e');
-    }
-
-    return CompressedVideoResult(
-      filePath: filePath,
-      bytes: originalBytes,
-    );
-  }
-}
-
-class CompressedVideoResult {
-  final String? filePath;
-  final Uint8List bytes;
-
-  CompressedVideoResult({
-    required this.filePath,
-    required this.bytes,
-  });
 }

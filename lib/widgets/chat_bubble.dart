@@ -342,41 +342,7 @@ class ChatBubble extends StatelessWidget {
             : const SizedBox.shrink();
 
       case MessageType.video:
-        return GestureDetector(
-          onTap: () => _downloadFile(context),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.play_circle_fill, color: Colors.white, size: 36),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        fileName ?? 'Video File',
-                        style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (fileSize != null)
-                        Text(
-                          _formatFileSize(fileSize!),
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+        return const SizedBox.shrink();
 
       case MessageType.voiceNote:
         return voiceNoteUrl != null

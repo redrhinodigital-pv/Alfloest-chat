@@ -143,6 +143,10 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
   Timer? _waveformTimer;
   final List<double> _waveHeights = List.generate(24, (index) => 3.0 + Random().nextDouble() * 15.0);
 
+  StreamSubscription? _durationSubscription;
+  StreamSubscription? _positionSubscription;
+  StreamSubscription? _playerStateSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -156,21 +160,27 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
         _duration = Duration(seconds: widget.durationSeconds!);
       }
       await _player.setUrl(widget.url);
-      _player.durationStream.listen((d) {
+      
+      _durationSubscription?.cancel();
+      _durationSubscription = _player.durationStream.listen((d) {
         if (d != null && mounted) {
           setState(() {
             _duration = d;
           });
         }
       });
-      _player.positionStream.listen((pos) {
+
+      _positionSubscription?.cancel();
+      _positionSubscription = _player.positionStream.listen((pos) {
         if (mounted) {
           setState(() {
             _position = pos;
           });
         }
       });
-      _player.playerStateStream.listen((state) {
+
+      _playerStateSubscription?.cancel();
+      _playerStateSubscription = _player.playerStateStream.listen((state) {
         if (mounted) {
           setState(() {
             _isPlaying = state.playing;
@@ -189,7 +199,37 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
   }
 
   @override
+  void didUpdateWidget(covariant VoiceMessageBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _reinitAudio();
+    }
+  }
+
+  Future<void> _reinitAudio() async {
+    try {
+      _waveformTimer?.cancel();
+      await _player.stop();
+      setState(() {
+        _position = Duration.zero;
+        _isPlaying = false;
+        if (widget.durationSeconds != null) {
+          _duration = Duration(seconds: widget.durationSeconds!);
+        } else {
+          _duration = Duration.zero;
+        }
+      });
+      await _player.setUrl(widget.url);
+    } catch (e) {
+      debugPrint('Error re-loading voice message: $e');
+    }
+  }
+
+  @override
   void dispose() {
+    _durationSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _playerStateSubscription?.cancel();
     _player.dispose();
     _waveformTimer?.cancel();
     super.dispose();
@@ -267,27 +307,45 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Animated Waveform Bars
-                SizedBox(
-                  height: 24,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: List.generate(_waveHeights.length, (idx) {
-                      final barProgress = idx / _waveHeights.length;
-                      final isPassed = barProgress <= progress;
-                      return Container(
-                        width: 2.5,
-                        height: _waveHeights[idx],
-                        decoration: BoxDecoration(
-                          color: isPassed
-                              ? (widget.isSent ? Colors.white : AppColors.primary)
-                              : (widget.isSent ? Colors.white30 : AppColors.primary.withValues(alpha: 0.2)),
-                          borderRadius: BorderRadius.circular(2),
+                // Animated Waveform Bars with tap-to-seek support
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return GestureDetector(
+                      onTapDown: (details) {
+                        if (_duration.inMilliseconds > 0) {
+                          final double clickX = details.localPosition.dx;
+                          final double width = constraints.maxWidth;
+                          final double relativeProgress = (clickX / width).clamp(0.0, 1.0);
+                          final seekTarget = Duration(
+                            milliseconds: (_duration.inMilliseconds * relativeProgress).round(),
+                          );
+                          _player.seek(seekTarget);
+                        }
+                      },
+                      child: Container(
+                        height: 24,
+                        color: Colors.transparent, // Ensure whole container is clickable
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: List.generate(_waveHeights.length, (idx) {
+                            final barProgress = idx / _waveHeights.length;
+                            final isPassed = barProgress <= progress;
+                            return Container(
+                              width: 2.5,
+                              height: _waveHeights[idx],
+                              decoration: BoxDecoration(
+                                color: isPassed
+                                    ? (widget.isSent ? Colors.white : AppColors.primary)
+                                    : (widget.isSent ? Colors.white30 : AppColors.primary.withValues(alpha: 0.2)),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            );
+                          }),
                         ),
-                      );
-                    }),
-                  ),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 4),
                 Row(

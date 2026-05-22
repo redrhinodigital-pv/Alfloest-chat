@@ -40,6 +40,11 @@ CREATE POLICY "Users can update their own profile"
 ON public.profiles FOR UPDATE
 USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+CREATE POLICY "Users can insert their own profile"
+ON public.profiles FOR INSERT
+WITH CHECK (auth.uid() = id);
+
 -- 4. Create the Trigger Function
 -- This function extracts user metadata (like username, display_name and avatar_url) 
 -- and auto-inserts them into our public.profiles table.
@@ -48,21 +53,38 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public
 AS $$
+DECLARE
+  base_username TEXT;
+  final_username TEXT;
+  counter INTEGER := 1;
 BEGIN
+  -- Extract base username
+  base_username := COALESCE(NEW.raw_user_meta_data->>'username', NEW.raw_user_meta_data->>'user_name', split_part(NEW.email, '@', 1));
+  -- Fallback if empty/null
+  IF base_username IS NULL OR base_username = '' THEN
+    base_username := 'user_' || SUBSTRING(NEW.id::TEXT, 1, 8);
+  END IF;
+  
+  final_username := base_username;
+
+  -- Resolve username conflicts by appending a counter
+  WHILE EXISTS(SELECT 1 FROM public.profiles WHERE username = final_username) LOOP
+    final_username := base_username || counter::TEXT;
+    counter := counter + 1;
+  END LOOP;
+
   INSERT INTO public.profiles (id, username, email, display_name, avatar_url, hide_email)
   VALUES (
     NEW.id,
-    -- Extract username from metadata or use email part
-    COALESCE(NEW.raw_user_meta_data->>'username', NEW.raw_user_meta_data->>'user_name', split_part(NEW.email, '@', 1)),
-    -- Extract email
+    final_username,
     COALESCE(NEW.email, ''),
-    -- Extract display name
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
-    -- Extract avatar_url
     COALESCE(NEW.raw_user_meta_data->>'avatar_url', ''),
-    -- Default hide_email to true
     true
   );
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Safe guard: never crash the user signup transaction
   RETURN NEW;
 END;
 $$;

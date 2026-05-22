@@ -8,15 +8,18 @@ final groupRepositoryProvider = Provider((ref) => GroupRepository());
 
 /// Stream user's groups
 final groupsProvider = StreamProvider.family<List<GroupModel>, String>((ref, uid) {
+  ref.keepAlive();
   return ref.watch(groupRepositoryProvider).streamGroups(uid);
 });
 
 /// Stream a single group
 final groupProvider = StreamProvider.family<GroupModel?, String>((ref, groupId) {
+  ref.keepAlive();
   return ref.watch(groupRepositoryProvider).streamGroup(groupId);
 });
 
 /// Stream group messages
 final groupMessagesProvider = StreamProvider.family<List<MessageModel>, String>((ref, groupId) {
+  ref.keepAlive();
   return ref.watch(groupRepositoryProvider).streamGroupMessages(groupId);
 });

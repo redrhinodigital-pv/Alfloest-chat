@@ -103,10 +103,20 @@ class AuthRepository {
       lastSeen: DateTime.now(),
     );
 
-    await _dbService.insertRow(
-      table: FirestoreConstants.usersCollection,
-      data: userModel.toDbMap(),
-    );
+    try {
+      await _dbService.insertRow(
+        table: FirestoreConstants.usersCollection,
+        data: userModel.toDbMap(),
+      );
+    } catch (e) {
+      try {
+        await _dbService.updateRow(
+          table: FirestoreConstants.usersCollection,
+          id: uid,
+          data: userModel.toDbMap(),
+        );
+      } catch (_) {}
+    }
 
     await HiveService.cacheUser(uid, userModel.toMap());
     return userModel;

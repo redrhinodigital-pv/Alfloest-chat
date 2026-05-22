@@ -32,7 +32,10 @@ class ArchivedChatsScreen extends ConsumerWidget {
       ),
       body: chatsAsync.when(
         loading: () => const LoadingWidget(type: LoadingType.chatList),
-        error: (err, _) => Center(child: Text('Error: $err', style: TextStyle(color: AppColors.error))),
+        error: (err, _) {
+          debugPrint('Archived chats stream error: $err');
+          return const LoadingWidget(type: LoadingType.chatList);
+        },
         data: (chats) {
           final archived = chats.where((c) => c.isArchivedBy(uid)).toList();
 

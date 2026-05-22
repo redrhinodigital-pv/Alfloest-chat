@@ -214,22 +214,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           );
           size = uploadBytes.length;
         }
-      } else if (type == MessageType.video) {
-        final picker = ImagePicker();
-        final file = await picker.pickVideo(source: ImageSource.gallery);
-        if (file != null) {
-          filePath = file.path;
-          name = file.name;
-          mimeType = 'video/mp4';
-          final originalBytes = await file.readAsBytes();
-          final compressResult = await ref.read(compressionServiceProvider).compressVideo(
-            filePath: file.path,
-            originalBytes: originalBytes,
-          );
-          filePath = compressResult.filePath ?? file.path;
-          uploadBytes = compressResult.bytes;
-          size = uploadBytes.length;
-        }
       } else if (type == MessageType.file) {
         final result = await FilePicker.pickFiles();
         if (result != null && result.files.isNotEmpty) {
@@ -403,14 +387,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   _pickAndSendMedia(MessageType.image);
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.videocam, color: Colors.blue),
-                title: const Text('Send Video', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickAndSendMedia(MessageType.video);
-                },
-              ),
+
               ListTile(
                 leading: const Icon(Icons.insert_drive_file, color: Colors.amber),
                 title: const Text('Send Document / File', style: TextStyle(color: Colors.white)),
@@ -686,7 +663,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Expanded(
             child: messagesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-              error: (err, _) => Center(child: Text('Error: $err')),
+              error: (err, _) {
+                debugPrint('Messages stream error: $err');
+                return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+              },
               data: (messages) {
                 final displayMessages = _searchQuery.isEmpty
                     ? messages

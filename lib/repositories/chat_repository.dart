@@ -40,22 +40,22 @@ class ChatRepository {
   }
 
   Stream<List<ChatModel>> streamChats(String uid) {
-    return _dbService.db
+    return StreamUtils.retryStream(() => _dbService.db
         .from(FirestoreConstants.chatsCollection)
         .stream(primaryKey: ['id'])
         .order('lastMessageTime', ascending: false)
         .map((list) => list
             .where((c) => (c['participants'] as List).contains(uid))
             .map((e) => ChatModel.fromMap(e))
-            .toList());
+            .toList()));
   }
 
   Stream<ChatModel?> streamChat(String chatId) {
-    return _dbService.db
+    return StreamUtils.retryStream(() => _dbService.db
         .from(FirestoreConstants.chatsCollection)
         .stream(primaryKey: ['id'])
         .eq('id', chatId)
-        .map((list) => list.isNotEmpty ? ChatModel.fromMap(list.first) : null);
+        .map((list) => list.isNotEmpty ? ChatModel.fromMap(list.first) : null));
   }
 
   Future<ChatModel?> getChat(String chatId) async {
@@ -112,13 +112,13 @@ class ChatRepository {
   }
 
   Stream<List<MessageModel>> streamMessages(String chatId, {int limit = 30}) {
-    return _dbService.db
+    return StreamUtils.retryStream(() => _dbService.db
         .from('messages')
         .stream(primaryKey: ['id'])
         .eq('chatId', chatId)
         .order('timestamp', ascending: false)
         .limit(limit)
-        .map((list) => list.map((e) => MessageModel.fromMap(e)).toList());
+        .map((list) => list.map((e) => MessageModel.fromMap(e)).toList()));
   }
 
   Future<void> markAllAsSeen(String chatId, String currentUid) async {

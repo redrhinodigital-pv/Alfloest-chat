@@ -127,7 +127,10 @@ class _ChatList extends ConsumerWidget {
 
     return chatsAsync.when(
       loading: () => const LoadingWidget(type: LoadingType.chatList),
-      error: (err, _) => Center(child: Text('Error: $err', style: TextStyle(color: AppColors.error))),
+      error: (err, _) {
+        debugPrint('Chats stream error: $err');
+        return const LoadingWidget(type: LoadingType.chatList);
+      },
       data: (chats) {
         if (chats.isEmpty) return _buildEmpty(context, 'No chats yet', 'Start a conversation!');
 
@@ -309,7 +312,10 @@ class _GroupList extends ConsumerWidget {
 
     return groupsAsync.when(
       loading: () => const LoadingWidget(type: LoadingType.chatList),
-      error: (err, _) => Center(child: Text('Error: $err')),
+      error: (err, _) {
+        debugPrint('Groups stream error: $err');
+        return const LoadingWidget(type: LoadingType.chatList);
+      },
       data: (groups) {
         if (groups.isEmpty) {
           return Center(
