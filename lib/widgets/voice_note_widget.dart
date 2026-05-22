@@ -159,8 +159,8 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
       if (widget.durationSeconds != null) {
         _duration = Duration(seconds: widget.durationSeconds!);
       }
-      await _player.setUrl(widget.url);
-      
+
+      // Register listeners BEFORE setUrl to capture all metadata events
       _durationSubscription?.cancel();
       _durationSubscription = _player.durationStream.listen((d) {
         if (d != null && mounted) {
@@ -193,6 +193,8 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
           });
         }
       });
+
+      await _player.setUrl(widget.url);
     } catch (e) {
       debugPrint('Error loading voice message: $e');
     }

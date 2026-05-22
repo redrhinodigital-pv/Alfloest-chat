@@ -19,6 +19,7 @@ import '../../services/storage_service.dart';
 import '../../services/audio_service.dart';
 import '../../services/supabase_service.dart';
 import '../../services/compression_service.dart';
+import '../../widgets/message_input.dart';
 import './group_details_screen.dart';
 
 class GroupChatScreen extends ConsumerStatefulWidget {
@@ -354,6 +355,46 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     );
   }
 
+  void _sendSticker(String stickerUrl) async {
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid == null) return;
+    final user = ref.read(userByIdProvider(uid)).value;
+    final senderName = user?.displayName ?? 'Unknown';
+
+    await ref.read(groupRepositoryProvider).sendGroupMessage(
+      groupId: widget.groupId,
+      senderId: uid,
+      senderName: senderName,
+      text: '',
+      type: MessageType.sticker,
+      mediaUrl: stickerUrl,
+      replyTo: _replyTo?.id,
+      replyToText: _replyTo?.text,
+      replyToSender: _replyTo?.senderName,
+    );
+    setState(() => _replyTo = null);
+  }
+
+  void _sendGif(String gifUrl) async {
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid == null) return;
+    final user = ref.read(userByIdProvider(uid)).value;
+    final senderName = user?.displayName ?? 'Unknown';
+
+    await ref.read(groupRepositoryProvider).sendGroupMessage(
+      groupId: widget.groupId,
+      senderId: uid,
+      senderName: senderName,
+      text: '',
+      type: MessageType.gif,
+      mediaUrl: gifUrl,
+      replyTo: _replyTo?.id,
+      replyToText: _replyTo?.text,
+      replyToSender: _replyTo?.senderName,
+    );
+    setState(() => _replyTo = null);
+  }
+
   void _showMessageOptions(BuildContext context, MessageModel msg, bool isSent) {
     final uid = ref.read(authStateProvider).value?.uid ?? '';
     showModalBottomSheet(
@@ -686,101 +727,25 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
             ),
 
           // Input Bar
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              border: Border(top: BorderSide(color: AppColors.divider, width: 0.5)),
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  if (!_isRecording) ...[
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryLight, size: 26),
-                      onPressed: _showMediaPicker,
-                    ),
-                  ] else ...[
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: AppColors.error),
-                      onPressed: _cancelRecording,
-                    ),
-                  ],
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(24)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: _isRecording
-                          ? Row(
-                              children: [
-                                const Icon(Icons.fiber_manual_record, color: AppColors.error, size: 16),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Recording Voice... ${_recordingDuration}s',
-                                  style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
-                                ),
-                              ],
-                            )
-                          : TextField(
-                              controller: _messageController,
-                              onChanged: _onTextChanged,
-                              maxLines: 4,
-                              minLines: 1,
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
-                              decoration: InputDecoration(
-                                hintText: 'Message',
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                                hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint),
-                              ),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (!_isRecording && _messageController.text.trim().isEmpty && _editingMessage == null) ...[
-                    GestureDetector(
-                      onLongPress: _startRecording,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Hold mic button to record voice note')),
-                        );
-                      },
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.divider),
-                        ),
-                        child: const Icon(Icons.mic, color: AppColors.primaryLight, size: 22),
-                      ),
-                    ),
-                  ] else ...[
-                    GestureDetector(
-                      onTap: _isRecording ? _stopAndSendVoice : _sendMessage,
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: const BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          _editingMessage != null
-                              ? Icons.check
-                              : _isRecording
-                                  ? Icons.send
-                                  : Icons.send_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+          MessageInput(
+            controller: _messageController,
+            onTextChanged: _onTextChanged,
+            onSendMessage: _sendMessage,
+            onAttachmentPressed: _showMediaPicker,
+            onMicTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Hold mic button to record voice note')),
+              );
+            },
+            onMicLongPress: _startRecording,
+            onCancelRecording: _cancelRecording,
+            onStopRecording: _stopAndSendVoice,
+            onStickerSend: _sendSticker,
+            onGifSend: _sendGif,
+            isRecording: _isRecording,
+            recordingDuration: _recordingDuration,
+            hasText: _messageController.text.trim().isNotEmpty,
+            isEditing: _editingMessage != null,
           ),
         ],
       ),

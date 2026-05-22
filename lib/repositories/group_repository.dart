@@ -94,6 +94,10 @@ class GroupRepository {
       lastMsgText = '🎥 Video';
     } else if (type == MessageType.file) {
       lastMsgText = '📁 ${fileName ?? 'Document'}';
+    } else if (type == MessageType.sticker) {
+      lastMsgText = '👾 Sticker';
+    } else if (type == MessageType.gif) {
+      lastMsgText = '🎬 GIF';
     }
 
     await _dbService.updateRow(

@@ -139,6 +139,8 @@ class MessageModel {
     if (type == MessageType.image) return '📷 Photo';
     if (type == MessageType.video) return '🎥 Video';
     if (type == MessageType.file) return '📁 ${fileName ?? 'Document'}';
+    if (type == MessageType.sticker) return '👾 Sticker';
+    if (type == MessageType.gif) return '🎬 GIF';
     return text;
   }
 

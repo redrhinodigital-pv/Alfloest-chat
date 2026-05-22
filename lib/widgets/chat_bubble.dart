@@ -6,6 +6,7 @@ import '../theme/app_text_styles.dart';
 import '../core/enums/enums.dart';
 import '../core/utils/date_formatter.dart';
 import './voice_note_widget.dart';
+import './animated_sticker_widget.dart';
 
 /// Chat bubble widget — supports sent/received, reply, forward, reactions, and media types.
 class ChatBubble extends StatelessWidget {
@@ -151,16 +152,27 @@ class ChatBubble extends StatelessWidget {
             children: [
               // Main bubble
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSent ? AppColors.bubbleSent : AppColors.bubbleReceived,
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(18),
-                    topRight: const Radius.circular(18),
-                    bottomLeft: Radius.circular(isSent ? 18 : 4),
-                    bottomRight: Radius.circular(isSent ? 4 : 18),
-                  ),
-                ),
+                padding: (type == MessageType.sticker || type == MessageType.gif)
+                    ? const EdgeInsets.all(4)
+                    : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: (type == MessageType.sticker || type == MessageType.gif)
+                    ? null // No background for stickers/gifs
+                    : BoxDecoration(
+                        gradient: isSent ? AppColors.primaryGradient : null,
+                        color: isSent ? null : Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(16),
+                          topRight: const Radius.circular(16),
+                          bottomLeft: Radius.circular(isSent ? 16 : 4),
+                          bottomRight: Radius.circular(isSent ? 4 : 16),
+                        ),
+                        border: isSent
+                            ? null
+                            : Border.all(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                width: 1.0,
+                              ),
+                      ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -406,6 +418,39 @@ class ChatBubble extends StatelessWidget {
             ),
           ),
         );
+
+      case MessageType.sticker:
+        return AnimatedStickerWidget(
+          url: mediaUrl ?? '',
+          size: 150,
+        );
+
+      case MessageType.gif:
+        return mediaUrl != null && mediaUrl!.isNotEmpty
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 200, maxWidth: 200),
+                  child: Image.network(
+                    mediaUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Center(
+                      child: Icon(Icons.gif_box_outlined, color: Colors.white54, size: 40),
+                    ),
+                    loadingBuilder: (_, child, progress) {
+                      if (progress == null) return child;
+                      return Container(
+                        height: 150,
+                        color: Colors.black12,
+                        child: const Center(
+                          child: CircularProgressIndicator(color: AppColors.primary),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              )
+            : const SizedBox.shrink();
 
       case MessageType.text:
         return Text(

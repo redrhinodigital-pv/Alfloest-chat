@@ -125,35 +125,38 @@ class _ChatList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final chatsAsync = ref.watch(chatsProvider(uid));
 
-    return chatsAsync.when(
-      loading: () => const LoadingWidget(type: LoadingType.chatList),
-      error: (err, _) {
-        debugPrint('Chats stream error: $err');
-        return const LoadingWidget(type: LoadingType.chatList);
-      },
-      data: (chats) {
-        if (chats.isEmpty) return _buildEmpty(context, 'No chats yet', 'Start a conversation!');
+    // Prioritize cached data during stream reconnects to prevent flickering
+    if (chatsAsync.isLoading && !chatsAsync.hasValue) {
+      return const LoadingWidget(type: LoadingType.chatList);
+    }
+    if (chatsAsync.hasError && !chatsAsync.hasValue) {
+      debugPrint('Chats stream error: ${chatsAsync.error}');
+      return const LoadingWidget(type: LoadingType.chatList);
+    }
 
-        // Separate pinned and regular chats, exclude archived
-        final active = chats.where((c) => !c.isArchivedBy(uid)).toList();
-        final pinned = active.where((c) => c.isPinnedBy(uid)).toList();
-        final regular = active.where((c) => !c.isPinnedBy(uid)).toList();
+    final chats = chatsAsync.valueOrNull ?? [];
+    if (chats.isEmpty && !chatsAsync.isLoading) {
+      return _buildEmpty(context, 'No chats yet', 'Start a conversation!');
+    }
 
-        return ListView(
-          children: [
-            if (pinned.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Text('PINNED', style: AppTextStyles.labelSmall.copyWith(
-                  color: AppColors.textHint, letterSpacing: 1)),
-              ),
-              ...pinned.map((chat) => _buildChatTile(context, ref, chat, uid)),
-              const Divider(),
-            ],
-            ...regular.map((chat) => _buildChatTile(context, ref, chat, uid)),
-          ],
-        );
-      },
+    // Separate pinned and regular chats, exclude archived
+    final active = chats.where((c) => !c.isArchivedBy(uid)).toList();
+    final pinned = active.where((c) => c.isPinnedBy(uid)).toList();
+    final regular = active.where((c) => !c.isPinnedBy(uid)).toList();
+
+    return ListView(
+      children: [
+        if (pinned.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Text('PINNED', style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.textHint, letterSpacing: 1)),
+          ),
+          ...pinned.map((chat) => _buildChatTile(context, ref, chat, uid)),
+          const Divider(),
+        ],
+        ...regular.map((chat) => _buildChatTile(context, ref, chat, uid)),
+      ],
     );
   }
 
@@ -310,40 +313,41 @@ class _GroupList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final groupsAsync = ref.watch(groupsProvider(uid));
 
-    return groupsAsync.when(
-      loading: () => const LoadingWidget(type: LoadingType.chatList),
-      error: (err, _) {
-        debugPrint('Groups stream error: $err');
-        return const LoadingWidget(type: LoadingType.chatList);
-      },
-      data: (groups) {
-        if (groups.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.group_outlined, size: 64, color: AppColors.textHint),
-                const SizedBox(height: 16),
-                Text('No groups yet', style: AppTextStyles.heading3.copyWith(color: AppColors.textSecondary)),
-              ],
-            ),
-          );
-        }
+    // Prioritize cached data during stream reconnects to prevent flickering
+    if (groupsAsync.isLoading && !groupsAsync.hasValue) {
+      return const LoadingWidget(type: LoadingType.chatList);
+    }
+    if (groupsAsync.hasError && !groupsAsync.hasValue) {
+      debugPrint('Groups stream error: ${groupsAsync.error}');
+      return const LoadingWidget(type: LoadingType.chatList);
+    }
 
-        return ListView.builder(
-          itemCount: groups.length,
-          itemBuilder: (_, i) {
-            final group = groups[i];
-            return ChatTile(
-              name: group.name,
-              lastMessage: group.lastMessage,
-              lastMessageTime: group.lastMessageTime,
-              isGroup: true,
-              onTap: () => Navigator.push(context, MaterialPageRoute(
-                builder: (_) => GroupChatScreen(groupId: group.id),
-              )),
-            );
-          },
+    final groups = groupsAsync.valueOrNull ?? [];
+    if (groups.isEmpty && !groupsAsync.isLoading) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.group_outlined, size: 64, color: AppColors.textHint),
+            const SizedBox(height: 16),
+            Text('No groups yet', style: AppTextStyles.heading3.copyWith(color: AppColors.textSecondary)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: groups.length,
+      itemBuilder: (_, i) {
+        final group = groups[i];
+        return ChatTile(
+          name: group.name,
+          lastMessage: group.lastMessage,
+          lastMessageTime: group.lastMessageTime,
+          isGroup: true,
+          onTap: () => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => GroupChatScreen(groupId: group.id),
+          )),
         );
       },
     );

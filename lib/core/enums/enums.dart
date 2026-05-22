@@ -4,7 +4,7 @@
 enum ChatType { oneToOne, group }
 
 /// Message content type
-enum MessageType { text, voiceNote, system, image, video, file }
+enum MessageType { text, voiceNote, system, image, video, file, sticker, gif }
 
 /// Message delivery status
 enum MessageStatus { sending, sent, delivered, seen }
