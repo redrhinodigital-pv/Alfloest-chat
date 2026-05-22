@@ -315,15 +315,19 @@ class _MessageInputState extends State<MessageInput> with SingleTickerProviderSt
           onEmojiSelected: (emoji) {
             final text = widget.controller.text;
             final selection = widget.controller.selection;
-            final newText = text.replaceRange(
-              selection.start,
-              selection.end,
-              emoji,
-            );
+            // When emoji picker is open, TextField loses focus and selection
+            // becomes invalid (start = -1). Default to appending at end.
+            final start = (selection.isValid && selection.start >= 0)
+                ? selection.start
+                : text.length;
+            final end = (selection.isValid && selection.end >= 0)
+                ? selection.end
+                : text.length;
+            final newText = text.replaceRange(start, end, emoji);
             widget.controller.value = TextEditingValue(
               text: newText,
               selection: TextSelection.collapsed(
-                offset: selection.start + emoji.length,
+                offset: start + emoji.length,
               ),
             );
             widget.onTextChanged(newText);

@@ -119,21 +119,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // App Icon with glass/glow effect
+                  // App Logo
                   Container(
-                    width: 80, height: 80,
+                    width: 90, height: 90,
                     decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.4),
-                          blurRadius: 30,
-                          offset: const Offset(0, 10),
-                        )
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          blurRadius: 30, spreadRadius: 3,
+                        ),
                       ],
                     ),
-                    child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 40),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                   const SizedBox(height: 24),
 

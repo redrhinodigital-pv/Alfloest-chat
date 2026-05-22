@@ -118,20 +118,23 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // App icon
+                      // App Logo
                       Container(
-                        width: 100, height: 100,
+                        width: 120, height: 120,
                         decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.4),
-                              blurRadius: 30, offset: const Offset(0, 10),
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 40, spreadRadius: 5,
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.chat_rounded, color: Colors.white, size: 48),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                       const SizedBox(height: 24),
                       Text('Alfloest', style: AppTextStyles.heading1.copyWith(
