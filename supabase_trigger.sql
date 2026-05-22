@@ -58,8 +58,8 @@ DECLARE
   final_username TEXT;
   counter INTEGER := 1;
 BEGIN
-  -- Extract base username
-  base_username := COALESCE(NEW.raw_user_meta_data->>'username', NEW.raw_user_meta_data->>'user_name', split_part(NEW.email, '@', 1));
+  -- Extract base username and force to lowercase
+  base_username := LOWER(COALESCE(NEW.raw_user_meta_data->>'username', NEW.raw_user_meta_data->>'user_name', split_part(NEW.email, '@', 1)));
   -- Fallback if empty/null
   IF base_username IS NULL OR base_username = '' THEN
     base_username := 'user_' || SUBSTRING(NEW.id::TEXT, 1, 8);

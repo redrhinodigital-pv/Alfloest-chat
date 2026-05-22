@@ -21,6 +21,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _searchController = TextEditingController();
   Timer? _debounce;
   String _searchQuery = '';
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -66,16 +67,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
         ],
       ),
-      body: _searchQuery.isEmpty
-          ? Center(child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.search_rounded, size: 64, color: AppColors.textHint),
-                const SizedBox(height: 16),
-                Text('Search for users', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint)),
-              ],
-            ))
-          : _buildResults(uid),
+      body: Stack(
+        children: [
+          _searchQuery.isEmpty
+              ? Center(child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.search_rounded, size: 64, color: AppColors.textHint),
+                    const SizedBox(height: 16),
+                    Text('Search for users', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint)),
+                  ],
+                ))
+              : _buildResults(uid),
+          if (_isLoading)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -101,15 +113,37 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               title: Text(user.displayName, style: TextStyle(color: AppColors.textPrimary)),
               subtitle: Text(user.username.isNotEmpty ? '@${user.username}' : user.bio,
                 style: TextStyle(color: AppColors.textSecondary)),
-              onTap: () async {
-                // Create or get existing chat
-                final chat = await ref.read(chatRepositoryProvider).getOrCreateChat(uid, user.uid);
-                if (mounted) {
-                  Navigator.pushReplacement(context, MaterialPageRoute(
-                    builder: (_) => ChatScreen(chatId: chat.id, otherUserId: user.uid),
-                  ));
-                }
-              },
+              onTap: _isLoading
+                  ? null
+                  : () async {
+                      setState(() {
+                        _isLoading = true;
+                      });
+                      try {
+                        final chat = await ref.read(chatRepositoryProvider).getOrCreateChat(uid, user.uid);
+                        ref.invalidate(chatsProvider(uid));
+                        if (mounted) {
+                          Navigator.pushReplacement(context, MaterialPageRoute(
+                            builder: (_) => ChatScreen(chatId: chat.id, otherUserId: user.uid),
+                          ));
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to open chat: $e', style: const TextStyle(color: Colors.white)),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            _isLoading = false;
+                          });
+                        }
+                      }
+                    },
             );
           },
         );

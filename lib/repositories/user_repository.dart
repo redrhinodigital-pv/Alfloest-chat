@@ -79,17 +79,25 @@ class UserRepository {
   }
 
   Future<List<UserModel>> searchUsers(String query) async {
-    if (query.trim().isEmpty) return [];
+    String cleanQuery = query.trim().toLowerCase();
+    if (cleanQuery.isEmpty) return [];
+
+    // Strip leading @ if it exists
+    if (cleanQuery.startsWith('@')) {
+      cleanQuery = cleanQuery.substring(1).trim();
+    }
+
+    if (cleanQuery.isEmpty) return [];
 
     final currentUid = _dbService.client.auth.currentUser?.id;
 
-    // Simple ilike search on Supabase across username, display_name, and email
+    // Exact username search (case-insensitive since query and stored usernames are lowercased)
     final response = await _dbService.db
         .from(FirestoreConstants.usersCollection)
         .select()
-        .or('username.ilike.%$query%,display_name.ilike.%$query%,email.ilike.%$query%')
+        .eq('username', cleanQuery)
         .neq('id', currentUid ?? '') // Exclude current user
-        .limit(20);
+        .limit(1);
 
     return (response as List).map((e) => UserModel.fromMap(e)).toList();
   }

@@ -128,7 +128,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     // Regular send
-    ref.read(chatRepositoryProvider).sendMessage(
+    await ref.read(chatRepositoryProvider).sendMessage(
       chatId: widget.chatId,
       senderId: uid,
       senderName: senderName,
@@ -137,6 +137,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       replyToText: _replyTo?.text,
       replyToSender: _replyTo?.senderName,
     );
+    ref.invalidate(chatsProvider(uid));
 
     _messageController.clear();
     setState(() => _replyTo = null);
@@ -271,6 +272,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             replyToText: _replyTo?.text,
             replyToSender: _replyTo?.senderName,
           );
+      ref.invalidate(chatsProvider(uid));
 
       setState(() => _replyTo = null);
     } catch (e) {
@@ -346,6 +348,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             replyToText: _replyTo?.text,
             replyToSender: _replyTo?.senderName,
           );
+      ref.invalidate(chatsProvider(uid));
 
       setState(() => _replyTo = null);
     } catch (e) {

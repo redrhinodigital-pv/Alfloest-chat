@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -144,6 +145,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           controller: _usernameController,
                           hintText: 'Username',
                           icon: Icons.person_outline_rounded,
+                          inputFormatters: [LowerCaseTextFormatter()],
+                        ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 8, bottom: 4, left: 4),
+                            child: Text(
+                              "Create a unique username using name + numbers\nExample: Mass135",
+                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary, fontSize: 12),
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 16),
                         _buildTextField(
@@ -218,6 +230,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     required IconData icon,
     bool obscureText = false,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -229,6 +242,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         controller: controller,
         obscureText: obscureText,
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
         decoration: InputDecoration(
           hintText: hintText,
@@ -238,6 +252,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
       ),
+    );
+  }
+}
+
+class LowerCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    return newValue.copyWith(
+      text: newValue.text.toLowerCase(),
+      selection: newValue.selection,
     );
   }
 }

@@ -37,16 +37,17 @@ class AuthRepository {
   }
 
   Future<void> signUpWithEmailPassword(String email, String password, String username) async {
+    final cleanUsername = username.trim().toLowerCase();
     // Unique usernames check
     final check = await _dbService.db
         .from(FirestoreConstants.usersCollection)
         .select('id')
-        .eq('username', username.trim())
+        .eq('username', cleanUsername)
         .maybeSingle();
     if (check != null) {
-      throw AppAuthException('Username "$username" is already taken. Please choose another.');
+      throw AppAuthException('Username "$cleanUsername" is already taken. Please choose another.');
     }
-    await _authService.signUpWithEmailPassword(email, password, username);
+    await _authService.signUpWithEmailPassword(email, password, cleanUsername);
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
@@ -72,7 +73,9 @@ class AuthRepository {
       // Update basic fields if they changed
       final updatedModel = userModel.copyWith(
         email: user.email ?? userModel.email,
-        username: user.userMetadata?['username'] ?? userModel.username,
+        username: user.userMetadata?['username'] != null 
+            ? user.userMetadata!['username'].toString().toLowerCase().trim()
+            : userModel.username,
         photoUrl: user.userMetadata?['avatar_url'] ?? userModel.photoUrl,
         isOnline: true,
         lastSeen: DateTime.now(),
@@ -89,11 +92,12 @@ class AuthRepository {
     }
 
     // New user auto-creation
-    final username = user.userMetadata?['username'] ?? user.email?.split('@')[0] ?? uid.substring(0, 8);
+    final rawUsername = user.userMetadata?['username'] ?? user.email?.split('@')[0] ?? uid.substring(0, 8);
+    final username = rawUsername.toString().toLowerCase().trim();
     
     final userModel = UserModel(
       uid: uid,
-      displayName: username,
+      displayName: rawUsername.toString().trim(),
       username: username,
       email: user.email ?? '',
       photoUrl: user.userMetadata?['avatar_url'] ?? '',
