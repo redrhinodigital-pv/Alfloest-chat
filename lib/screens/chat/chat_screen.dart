@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,6 +43,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   // Media & Recording states
   bool _isUploading = false;
+  double _uploadProgress = 0.0;
   bool _isRecording = false;
   int _recordingDuration = 0;
   Timer? _recordingTimer;
@@ -81,16 +81,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final uid = ref.read(authStateProvider).value?.uid;
     if (uid == null) return;
 
-    if (text.isNotEmpty && !_isTyping) {
-      _isTyping = true;
-      ref.read(chatRepositoryProvider).setTyping(widget.chatId, uid, true);
-    }
+    setState(() {});
 
-    _typingTimer?.cancel();
-    _typingTimer = Timer(const Duration(seconds: 3), () {
-      _isTyping = false;
-      ref.read(chatRepositoryProvider).setTyping(widget.chatId, uid, false);
-    });
+    if (text.isNotEmpty) {
+      if (!_isTyping) {
+        _isTyping = true;
+        ref.read(chatRepositoryProvider).setTyping(widget.chatId, uid, true);
+      }
+      _typingTimer?.cancel();
+      _typingTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _isTyping = false;
+          });
+        }
+        ref.read(chatRepositoryProvider).setTyping(widget.chatId, uid, false);
+      });
+    } else {
+      if (_isTyping) {
+        setState(() {
+          _isTyping = false;
+        });
+        _typingTimer?.cancel();
+        ref.read(chatRepositoryProvider).setTyping(widget.chatId, uid, false);
+      }
+    }
   }
 
   void _sendMessage() async {
@@ -224,7 +239,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           size = file.size;
           final pickedBytes = file.bytes;
           if (pickedBytes == null && file.path != null) {
-            uploadBytes = await io.File(file.path!).readAsBytes();
+            uploadBytes = await XFile(file.path!).readAsBytes();
           } else {
             uploadBytes = pickedBytes;
           }
@@ -234,12 +249,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       if (name == null) return;
       if (uploadBytes == null && filePath != null) {
-        uploadBytes = await io.File(filePath).readAsBytes();
+        uploadBytes = await XFile(filePath).readAsBytes();
       }
       if (uploadBytes == null) return;
       size ??= uploadBytes.length;
 
-      setState(() => _isUploading = true);
+      setState(() {
+        _isUploading = true;
+        _uploadProgress = 0.0;
+      });
 
       final downloadUrl = await ref.read(storageServiceProvider).uploadMedia(
             filePath: filePath,
@@ -247,6 +265,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             chatId: widget.chatId,
             fileName: name,
             mimeType: mimeType,
+            onProgress: (progress) {
+              if (mounted) {
+                setState(() {
+                  _uploadProgress = progress;
+                });
+              }
+            },
           );
 
       await ref.read(chatRepositoryProvider).sendMessage(
@@ -304,7 +329,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final userAsync = ref.read(userByIdProvider(uid));
     final senderName = userAsync.value?.displayName ?? 'Unknown';
 
-    setState(() => _isUploading = true);
+    setState(() {
+      _isUploading = true;
+      _uploadProgress = 0.0;
+    });
 
     try {
       final msgId = const Uuid().v4();
@@ -313,6 +341,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             bytes: null,
             chatId: widget.chatId,
             messageId: msgId,
+            onProgress: (progress) {
+              if (mounted) {
+                setState(() {
+                  _uploadProgress = progress;
+                });
+              }
+            },
           );
 
       await ref.read(chatRepositoryProvider).sendMessage(
@@ -641,7 +676,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         children: [
           // Upload state indicator
           if (_isUploading)
-            const LinearProgressIndicator(color: AppColors.primary, backgroundColor: AppColors.card),
+            LinearProgressIndicator(
+              value: _uploadProgress > 0 ? _uploadProgress : null,
+              color: AppColors.primary,
+              backgroundColor: AppColors.card,
+            ),
 
           // Messages list
           Expanded(

@@ -213,6 +213,16 @@ class ChatRepository {
     }
   }
 
+  Future<void> toggleMute(String chatId, String uid, bool mute) async {
+    final chat = await getChat(chatId);
+    if (chat != null) {
+      final mutedBy = List<String>.from(chat.mutedBy);
+      if (mute && !mutedBy.contains(uid)) mutedBy.add(uid);
+      if (!mute) mutedBy.remove(uid);
+      await _dbService.updateRow(table: FirestoreConstants.chatsCollection, id: chatId, data: {'mutedBy': mutedBy});
+    }
+  }
+
   Future<void> clearChat(String chatId, String uid) async {
     try {
       final messages = await _dbService.db
@@ -220,13 +230,17 @@ class ChatRepository {
           .select('id, deletedFor')
           .eq('chatId', chatId);
       
+      final List<Future> updates = [];
       for (final m in messages) {
         final id = m['id'];
         final deletedFor = List<String>.from(m['deletedFor'] ?? []);
         if (!deletedFor.contains(uid)) {
           deletedFor.add(uid);
-          await _dbService.db.from('messages').update({'deletedFor': deletedFor}).eq('id', id);
+          updates.add(_dbService.db.from('messages').update({'deletedFor': deletedFor}).eq('id', id));
         }
+      }
+      if (updates.isNotEmpty) {
+        await Future.wait(updates);
       }
     } catch (e) {
       // Ignore or log

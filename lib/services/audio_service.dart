@@ -35,20 +35,19 @@ class AudioService {
   /// Start recording a voice note (AAC format for lightweight storage)
   Future<String?> startRecording() async {
     try {
-      if (kIsWeb) {
-        debugPrint('Voice recording not supported on web');
-        return null;
-      }
-
       final hasPermission = await _recorder.hasPermission();
       if (!hasPermission) {
         debugPrint('Microphone permission denied');
         return null;
       }
 
-      final dir = await getTemporaryDirectory();
-      final path =
-          '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
+      String path;
+      if (kIsWeb) {
+        path = 'voice_note.aac';
+      } else {
+        final dir = await getTemporaryDirectory();
+        path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
+      }
 
       // Record as AAC for compression
       await _recorder.start(
@@ -97,9 +96,11 @@ class AudioService {
 
       // Delete the temporary file
       if (_currentRecordingPath != null) {
-        final file = File(_currentRecordingPath!);
-        if (await file.exists()) {
-          await file.delete();
+        if (!kIsWeb) {
+          final file = File(_currentRecordingPath!);
+          if (await file.exists()) {
+            await file.delete();
+          }
         }
         _currentRecordingPath = null;
       }
@@ -180,6 +181,7 @@ class AudioService {
 
   /// Delete a temporary audio file
   static Future<void> deleteFile(String path) async {
+    if (kIsWeb) return;
     try {
       final file = File(path);
       if (await file.exists()) {

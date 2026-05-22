@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +39,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   
   // Media & Recording states
   bool _isUploading = false;
+  double _uploadProgress = 0.0;
   bool _isRecording = false;
   int _recordingDuration = 0;
   Timer? _recordingTimer;
@@ -57,6 +57,10 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     _recordingTimer?.cancel();
     _audioService.dispose();
     super.dispose();
+  }
+
+  void _onTextChanged(String text) {
+    setState(() {});
   }
 
   void _sendMessage() async {
@@ -186,7 +190,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
           size = file.size;
           final pickedBytes = file.bytes;
           if (pickedBytes == null && file.path != null) {
-            uploadBytes = await io.File(file.path!).readAsBytes();
+            uploadBytes = await XFile(file.path!).readAsBytes();
           } else {
             uploadBytes = pickedBytes;
           }
@@ -196,12 +200,15 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
 
       if (name == null) return;
       if (uploadBytes == null && filePath != null) {
-        uploadBytes = await io.File(filePath).readAsBytes();
+        uploadBytes = await XFile(filePath).readAsBytes();
       }
       if (uploadBytes == null) return;
       size ??= uploadBytes.length;
 
-      setState(() => _isUploading = true);
+      setState(() {
+        _isUploading = true;
+        _uploadProgress = 0.0;
+      });
 
       final downloadUrl = await ref.read(storageServiceProvider).uploadMedia(
             filePath: filePath,
@@ -209,6 +216,13 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
             chatId: widget.groupId,
             fileName: name,
             mimeType: mimeType,
+            onProgress: (progress) {
+              if (mounted) {
+                setState(() {
+                  _uploadProgress = progress;
+                });
+              }
+            },
           );
 
       await ref.read(groupRepositoryProvider).sendGroupMessage(
@@ -266,7 +280,10 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     final user = ref.read(userByIdProvider(uid)).value;
     final senderName = user?.displayName ?? 'Unknown';
 
-    setState(() => _isUploading = true);
+    setState(() {
+      _isUploading = true;
+      _uploadProgress = 0.0;
+    });
 
     try {
       final msgId = const Uuid().v4();
@@ -275,6 +292,13 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
             bytes: null,
             chatId: widget.groupId,
             messageId: msgId,
+            onProgress: (progress) {
+              if (mounted) {
+                setState(() {
+                  _uploadProgress = progress;
+                });
+              }
+            },
           );
 
       await ref.read(groupRepositoryProvider).sendGroupMessage(
@@ -559,7 +583,11 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         children: [
           // Upload state indicator
           if (_isUploading)
-            const LinearProgressIndicator(color: AppColors.primary, backgroundColor: AppColors.card),
+            LinearProgressIndicator(
+              value: _uploadProgress > 0 ? _uploadProgress : null,
+              color: AppColors.primary,
+              backgroundColor: AppColors.card,
+            ),
 
           // Messages list
           Expanded(
@@ -715,6 +743,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                             )
                           : TextField(
                               controller: _messageController,
+                              onChanged: _onTextChanged,
                               maxLines: 4,
                               minLines: 1,
                               style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),

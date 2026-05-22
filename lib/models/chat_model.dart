@@ -11,6 +11,7 @@ class ChatModel {
   final List<String> pinnedBy;
   final List<String> archivedBy;
   final List<String> favoriteBy;
+  final List<String> mutedBy;
   final Map<String, int> unreadCount;
   final List<String> typingUsers;
   final DateTime createdAt;
@@ -25,6 +26,7 @@ class ChatModel {
     this.pinnedBy = const [],
     this.archivedBy = const [],
     this.favoriteBy = const [],
+    this.mutedBy = const [],
     this.unreadCount = const {},
     this.typingUsers = const [],
     required this.createdAt,
@@ -46,6 +48,7 @@ class ChatModel {
       pinnedBy: List<String>.from(data['pinnedBy'] ?? []),
       archivedBy: List<String>.from(data['archivedBy'] ?? []),
       favoriteBy: List<String>.from(data['favoriteBy'] ?? []),
+      mutedBy: List<String>.from(data['mutedBy'] ?? []),
       unreadCount: data['unreadCount'] is Map 
           ? Map<String, int>.from(data['unreadCount'].map((key, value) => MapEntry(key.toString(), int.tryParse(value.toString()) ?? 0)))
           : {},
@@ -67,6 +70,7 @@ class ChatModel {
       'pinnedBy': pinnedBy,
       'archivedBy': archivedBy,
       'favoriteBy': favoriteBy,
+      'mutedBy': mutedBy,
       'unreadCount': unreadCount,
       'typingUsers': typingUsers,
       'createdAt': createdAt.toUtc().toIso8601String(),
@@ -90,6 +94,9 @@ class ChatModel {
   /// Check if this chat is favorited by a specific user
   bool isFavoritedBy(String uid) => favoriteBy.contains(uid);
 
+  /// Check if this chat is muted by a specific user
+  bool isMutedBy(String uid) => mutedBy.contains(uid);
+
   /// Get unread count for a specific user
   int getUnreadCount(String uid) => unreadCount[uid] ?? 0;
 
@@ -108,6 +115,7 @@ class ChatModel {
     List<String>? pinnedBy,
     List<String>? archivedBy,
     List<String>? favoriteBy,
+    List<String>? mutedBy,
     Map<String, int>? unreadCount,
     List<String>? typingUsers,
     DateTime? createdAt,
@@ -122,6 +130,7 @@ class ChatModel {
       pinnedBy: pinnedBy ?? this.pinnedBy,
       archivedBy: archivedBy ?? this.archivedBy,
       favoriteBy: favoriteBy ?? this.favoriteBy,
+      mutedBy: mutedBy ?? this.mutedBy,
       unreadCount: unreadCount ?? this.unreadCount,
       typingUsers: typingUsers ?? this.typingUsers,
       createdAt: createdAt ?? this.createdAt,

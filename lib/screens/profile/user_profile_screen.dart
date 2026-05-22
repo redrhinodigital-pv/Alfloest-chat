@@ -11,7 +11,6 @@ import '../../providers/chat_provider.dart';
 import '../../providers/group_provider.dart';
 import '../../widgets/avatar_widget.dart';
 import '../../core/utils/date_formatter.dart';
-import '../../services/hive_service.dart';
 import '../group/group_chat_screen.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
@@ -58,10 +57,24 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     }
   }
 
-  void _toggleMute(String chatId, bool isMuted) async {
-    // Storing mute status in Hive local settings
-    await HiveService.setSetting<bool>('mute_chat_$chatId', !isMuted);
-    setState(() {}); // Rebuild
+  void _toggleMute(String chatId, String currentUid, bool isMuted) async {
+    try {
+      await ref.read(chatRepositoryProvider).toggleMute(chatId, currentUid, !isMuted);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(!isMuted ? 'Notifications muted' : 'Notifications unmuted'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update mute status: $e')),
+        );
+      }
+    }
   }
 
   void _blockUser(UserModel currentUser, UserModel targetUser) async {
@@ -288,8 +301,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                           final isArchived = chat.isArchivedBy(currentUid);
                           final isFavorited = chat.isFavoritedBy(currentUid);
 
-                          // Check mute using Hive
-                          final isMuted = HiveService.getSetting<bool>('mute_chat_${widget.chatId!}') == true;
+                          final isMuted = chat.isMutedBy(currentUid);
 
                           return Container(
                             decoration: BoxDecoration(
@@ -306,8 +318,24 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                   trailing: Switch(
                                     value: isFavorited,
                                     activeThumbColor: AppColors.primary,
-                                    onChanged: (val) {
-                                      ref.read(chatRepositoryProvider).toggleFavorite(widget.chatId!, currentUid, val);
+                                    onChanged: (val) async {
+                                      try {
+                                        await ref.read(chatRepositoryProvider).toggleFavorite(widget.chatId!, currentUid, val);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(val ? 'Added to favorites' : 'Removed from favorites'),
+                                              duration: const Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Failed to update favorite status: $e')),
+                                          );
+                                        }
+                                      }
                                     },
                                   ),
                                 ),
@@ -318,8 +346,24 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                   trailing: Switch(
                                     value: isPinned,
                                     activeThumbColor: AppColors.primary,
-                                    onChanged: (val) {
-                                      ref.read(chatRepositoryProvider).togglePin(widget.chatId!, currentUid, val);
+                                    onChanged: (val) async {
+                                      try {
+                                        await ref.read(chatRepositoryProvider).togglePin(widget.chatId!, currentUid, val);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(val ? 'Chat pinned' : 'Chat unpinned'),
+                                              duration: const Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Failed to pin/unpin chat: $e')),
+                                          );
+                                        }
+                                      }
                                     },
                                   ),
                                 ),
@@ -330,8 +374,24 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                   trailing: Switch(
                                     value: isArchived,
                                     activeThumbColor: AppColors.primary,
-                                    onChanged: (val) {
-                                      ref.read(chatRepositoryProvider).toggleArchive(widget.chatId!, currentUid, val);
+                                    onChanged: (val) async {
+                                      try {
+                                        await ref.read(chatRepositoryProvider).toggleArchive(widget.chatId!, currentUid, val);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(val ? 'Chat archived' : 'Chat unarchived'),
+                                              duration: const Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Failed to archive/unarchive chat: $e')),
+                                          );
+                                        }
+                                      }
                                     },
                                   ),
                                 ),
@@ -342,7 +402,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                   trailing: Switch(
                                     value: isMuted,
                                     activeThumbColor: AppColors.primary,
-                                    onChanged: (val) => _toggleMute(widget.chatId!, isMuted),
+                                    onChanged: (val) => _toggleMute(widget.chatId!, currentUid, isMuted),
                                   ),
                                 ),
                                 Divider(color: AppColors.divider, height: 1),

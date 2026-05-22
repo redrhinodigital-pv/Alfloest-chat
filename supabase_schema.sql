@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS public.chats (
     "pinnedBy" text[] DEFAULT '{}'::text[],
     "archivedBy" text[] DEFAULT '{}'::text[],
     "favoriteBy" text[] DEFAULT '{}'::text[], -- tracks favorited chats
+    "mutedBy" text[] DEFAULT '{}'::text[], -- tracks muted chats
     "createdAt" timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
 
