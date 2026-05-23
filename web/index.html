@@ -42,7 +42,31 @@
       margin: 0;
       min-height: 100%;
       background-color: #0B1026;
-          background-size: 100% 100%;
+      background-size: 100% 100%;
+    }
+
+    /* Style hidden and overlayed input/textarea fields rendered by Flutter Web */
+    input, textarea, select {
+      background: transparent !important;
+      background-color: transparent !important;
+      color: white !important;
+      border: none !important;
+      outline: none !important;
+    }
+
+    /* Target webkit and mobile browser autofill background-color override */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover, 
+    input:-webkit-autofill:focus, 
+    input:-webkit-autofill:active,
+    textarea:-webkit-autofill,
+    textarea:-webkit-autofill:hover,
+    textarea:-webkit-autofill:focus,
+    textarea:-webkit-autofill:active {
+      -webkit-box-shadow: 0 0 0 1000px #141B4D inset !important;
+      -webkit-text-fill-color: white !important;
+      caret-color: white !important;
+      transition: background-color 5000s ease-in-out 0s !important;
     }
 
     .center {
