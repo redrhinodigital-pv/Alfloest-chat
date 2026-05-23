@@ -68,7 +68,7 @@ class ArchivedChatsScreen extends ConsumerWidget {
                   lastMessage: chat.lastMessage,
                   lastMessageTime: chat.lastMessageTime,
                   unreadCount: chat.getUnreadCount(uid),
-                  isOnline: user?.isOnline ?? false,
+                  isOnline: user?.isCurrentlyOnline ?? false,
                   isTyping: chat.isTyping(uid),
                   isPinned: chat.isPinnedBy(uid),
                   onTap: () => Navigator.push(context, MaterialPageRoute(

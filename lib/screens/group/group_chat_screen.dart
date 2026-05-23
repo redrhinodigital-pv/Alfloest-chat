@@ -19,6 +19,8 @@ import '../../services/storage_service.dart';
 import '../../services/audio_service.dart';
 import '../../services/supabase_service.dart';
 import '../../services/compression_service.dart';
+import '../../services/validation_service.dart';
+import '../../providers/settings_provider.dart';
 import '../../widgets/message_input.dart';
 import './group_details_screen.dart';
 
@@ -150,21 +152,18 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     int? size;
     String mimeType = 'application/octet-stream';
     Uint8List? uploadBytes;
+    Uint8List? thumbnailBytes;
 
     try {
       if (type == MessageType.image) {
         final picker = ImagePicker();
-        final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
+        final file = await picker.pickImage(source: ImageSource.gallery);
         if (file != null) {
           filePath = file.path;
           name = file.name;
-          mimeType = 'image/jpeg';
-          final originalBytes = await file.readAsBytes();
-          uploadBytes = await ref.read(compressionServiceProvider).compressImage(
-            filePath: file.path,
-            originalBytes: originalBytes,
-          );
-          size = uploadBytes.length;
+          size = await file.length();
+          uploadBytes = await file.readAsBytes();
+          mimeType = 'image/webp'; // We will compress to WebP
         }
       } else if (type == MessageType.file) {
         final result = await FilePicker.pickFiles();
@@ -183,24 +182,149 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         }
       }
 
-      if (name == null) return;
-      if (uploadBytes == null && filePath != null) {
-        uploadBytes = await XFile(filePath).readAsBytes();
-      }
-      if (uploadBytes == null) return;
+      if (name == null || uploadBytes == null) return;
       size ??= uploadBytes.length;
 
+      // 1. Security check
+      if (!ValidationService.isSafeFile(name)) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('Security Alert'),
+              content: const Text('This file format is not supported for security reasons.'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      // 2. Duplicate Detection
+      final cachedUrl = await ValidationService.checkDuplicate(name, size);
+      if (cachedUrl != null) {
+        // Instant send duplicate file, bypasses upload entirely!
+        await ref.read(groupRepositoryProvider).sendGroupMessage(
+              groupId: widget.groupId,
+              senderId: uid,
+              senderName: senderName,
+              text: '',
+              type: type,
+              mediaUrl: cachedUrl,
+              fileName: name,
+              fileSize: size,
+              replyTo: _replyTo?.id,
+              replyToText: _replyTo?.text,
+              replyToSender: _replyTo?.senderName,
+            );
+        setState(() => _replyTo = null);
+        return;
+      }
+
+      // 3. Estimated Pre-Upload Dialog & Confirmation
+      final dataSaver = ref.read(dataSaverProvider);
+      final estimatedSize = ValidationService.estimateCompressedSize(name, size, dataSaver: dataSaver);
+      
+      if (mounted) {
+        final double originalMb = size / (1024 * 1024);
+        final double estimatedMb = estimatedSize / (1024 * 1024);
+        final double savingsPercent = ((size - estimatedSize) / size) * 100;
+
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Optimize & Upload?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('File: $name', style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Original Size:'),
+                    Text('${originalMb.toStringAsFixed(2)} MB'),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Compressed Size (Est):'),
+                    Text('${estimatedMb.toStringAsFixed(2)} MB', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const Divider(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Bandwidth Saved:'),
+                    Text('${savingsPercent.toStringAsFixed(1)}%', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                if (dataSaver)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text('ℹ️ Data Saver Mode Active (Strong Compression)', style: TextStyle(color: AppColors.primaryLight, fontSize: 12)),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Compress & Upload')),
+            ],
+          ),
+        );
+        if (confirm != true) return;
+      }
+
+      // 4. Perform compression dynamically based on file type
       setState(() {
         _isUploading = true;
         _uploadProgress = 0.0;
       });
 
+      String finalFileName = name;
+      String finalMimeType = mimeType;
+
+      if (type == MessageType.image) {
+        // Dynamic WebP compression isolate
+        final compResult = await ref.read(compressionServiceProvider).compressImage(
+              filePath: filePath,
+              originalBytes: uploadBytes,
+              dataSaver: dataSaver,
+            );
+        uploadBytes = compResult.mediaBytes;
+        thumbnailBytes = compResult.thumbnailBytes;
+        finalFileName = '${name.split('.').first}.webp';
+        finalMimeType = 'image/webp';
+      } else if (type == MessageType.file) {
+        // Zip documents over 500KB to reduce size recursively
+        final ext = name.split('.').last.toLowerCase();
+        if (['txt', 'docx', 'pdf', 'doc', 'xls', 'xlsx'].contains(ext) && size > 500 * 1024) {
+          uploadBytes = await ref.read(compressionServiceProvider).zipDocument(
+                fileName: name,
+                originalBytes: uploadBytes,
+              );
+          finalFileName = '$name.zip';
+          finalMimeType = 'application/zip';
+        }
+      }
+
+      // Generate a unique task ID using message UUID
+      final String taskId = const Uuid().v4();
+
       final downloadUrl = await ref.read(storageServiceProvider).uploadMedia(
             filePath: filePath,
             bytes: uploadBytes,
             chatId: widget.groupId,
-            fileName: name,
-            mimeType: mimeType,
+            userId: uid,
+            fileName: finalFileName,
+            taskId: taskId,
+            thumbnailBytes: thumbnailBytes,
+            mimeType: finalMimeType,
             onProgress: (progress) {
               if (mounted) {
                 setState(() {
@@ -210,6 +334,9 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
             },
           );
 
+      // Register uploaded file to local deduplication cache
+      await ValidationService.registerUpload(name, size, downloadUrl);
+
       await ref.read(groupRepositoryProvider).sendGroupMessage(
             groupId: widget.groupId,
             senderId: uid,
@@ -217,22 +344,26 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
             text: '',
             type: type,
             mediaUrl: downloadUrl,
-            fileName: name,
-            fileSize: size,
+            fileName: finalFileName,
+            fileSize: uploadBytes.length,
             replyTo: _replyTo?.id,
             replyToText: _replyTo?.text,
             replyToSender: _replyTo?.senderName,
           );
 
-      setState(() => _replyTo = null);
+      setState(() {
+        _replyTo = null;
+        _isUploading = false;
+      });
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload media: $e')),
+          SnackBar(content: Text('Failed to optimize and upload media: $e')),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -277,6 +408,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
             bytes: null,
             chatId: widget.groupId,
             messageId: msgId,
+            userId: uid,
             onProgress: (progress) {
               if (mounted) {
                 setState(() {

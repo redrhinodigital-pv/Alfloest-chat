@@ -5,6 +5,7 @@ import '../../theme/app_text_styles.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../auth/login_screen.dart';
 
 /// Settings screen — dark mode, privacy, account actions
@@ -86,6 +87,17 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const Divider(),
 
+          // ── Data & Storage ──
+          _SectionHeader(title: 'Data & Storage'),
+          SwitchListTile(
+            secondary: const Icon(Icons.data_saver_on_rounded),
+            title: const Text('Data Saver Mode'),
+            subtitle: const Text('Aggressive compression, auto-download restricted, audio autoplay disabled'),
+            value: ref.watch(dataSaverProvider),
+            onChanged: (_) => ref.read(dataSaverProvider.notifier).toggle(),
+          ),
+          const Divider(),
+
           // ── Account ──
           _SectionHeader(title: 'Account'),
           ListTile(
@@ -118,8 +130,109 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: Icon(Icons.delete_forever_rounded, color: AppColors.error),
             title: Text('Delete Account', style: TextStyle(color: AppColors.error)),
-            onTap: () {
-              // Delete account confirmation
+            onTap: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (dialogContext) {
+                  final textController = TextEditingController();
+                  bool isConfirmEnabled = false;
+
+                  return StatefulBuilder(
+                    builder: (context, setState) {
+                      final isDark = Theme.of(context).brightness == Brightness.dark;
+                      final textPrimaryColor = isDark ? AppColors.textPrimary : const Color(0xFF0F172A);
+
+                      return AlertDialog(
+                        backgroundColor: Theme.of(context).dialogTheme.backgroundColor,
+                        title: Text('Delete Account?', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Warning: This action is permanent and will delete all your chats, messages, groups, and notifications.',
+                              style: TextStyle(color: Colors.redAccent, fontSize: 13),
+                            ),
+                            const SizedBox(height: 16),
+                            Text('Type DELETE to confirm:', style: TextStyle(color: textPrimaryColor, fontSize: 14)),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: textController,
+                              autofocus: true,
+                              style: TextStyle(color: textPrimaryColor),
+                              decoration: InputDecoration(
+                                hintText: 'DELETE',
+                                border: const OutlineInputBorder(),
+                                hintStyle: TextStyle(color: AppColors.textHint.withValues(alpha: 0.5)),
+                              ),
+                              onChanged: (val) {
+                                setState(() {
+                                  isConfirmEnabled = val == 'DELETE';
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext, false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: isConfirmEnabled
+                                ? () => Navigator.pop(dialogContext, true)
+                                : null,
+                            child: Text(
+                              'DELETE',
+                              style: TextStyle(
+                                color: isConfirmEnabled ? AppColors.error : Colors.grey,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              );
+
+              if (confirm == true) {
+                if (!context.mounted) return;
+                // Show a loading dialog
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                );
+
+                try {
+                  await ref.read(authViewModelProvider.notifier).deleteAccount();
+                  if (context.mounted) {
+                    Navigator.of(context).pop(); // Dismiss loading
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Account permanently deleted.'),
+                        backgroundColor: AppColors.primary,
+                      ),
+                    );
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (_) => false,
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    Navigator.of(context).pop(); // Dismiss loading
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to delete account: $e'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
+              }
             },
           ),
           const SizedBox(height: 32),

@@ -109,7 +109,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           itemBuilder: (_, i) {
             final user = filtered[i];
             return ListTile(
-              leading: AvatarWidget(name: user.displayName, imageUrl: user.photoUrl, size: 48, showOnline: true, isOnline: user.isOnline),
+              leading: AvatarWidget(name: user.displayName, imageUrl: user.photoUrl, size: 48, showOnline: true, isOnline: user.isCurrentlyOnline),
               title: Text(user.displayName, style: TextStyle(color: AppColors.textPrimary)),
               subtitle: Text(user.username.isNotEmpty ? '@${user.username}' : user.bio,
                 style: TextStyle(color: AppColors.textSecondary)),

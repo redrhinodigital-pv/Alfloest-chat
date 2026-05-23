@@ -1,11 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../../core/extensions/theme_extensions.dart';
+import '../../core/enums/enums.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/group_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/notification_provider.dart';
+import '../../services/notification_service.dart';
 import '../../widgets/chat_tile.dart';
 import '../../widgets/loading_widget.dart';
 import '../chat/chat_screen.dart';
@@ -28,16 +33,79 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  StreamSubscription<String?>? _notificationSubscription;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    // Initialize notification listeners after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initNotificationRouting();
+    });
+  }
+
+  void _initNotificationRouting() async {
+    final notificationService = ref.read(notificationServiceProvider);
+    
+    // 1. Initialize Notification Service
+    await notificationService.init();
+
+    // 2. Request and register FCM Token if authenticated
+    final authState = ref.read(authStateProvider).value;
+    if (authState != null) {
+      ref.read(notificationRepositoryProvider).initFcm(authState.uid);
+    }
+
+    // 3. Listen for notification click responses
+    _notificationSubscription = NotificationService.selectNotificationStream.stream.listen((chatId) async {
+      if (chatId != null && chatId.isNotEmpty && mounted) {
+        final currentUid = ref.read(authStateProvider).value?.uid;
+        if (currentUid == null) return;
+
+        try {
+          // Check if it's a one-to-one chat
+          final chat = await ref.read(chatRepositoryProvider).getChat(chatId);
+          if (!mounted) return;
+          if (chat != null) {
+            if (chat.type == ChatType.oneToOne) {
+              final otherUid = chat.otherParticipant(currentUid);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen(chatId: chat.id, otherUserId: otherUid),
+                ),
+              );
+            } else {
+              // Group Chat routing
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => GroupChatScreen(groupId: chat.id),
+                ),
+              );
+            }
+          } else {
+            // Fallback: it could be a group if it doesn't match standard chat ID in chats table
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GroupChatScreen(groupId: chatId),
+              ),
+            );
+          }
+        } catch (e) {
+          debugPrint('Failed to route notification: $e');
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _notificationSubscription?.cancel();
     super.dispose();
   }
 
@@ -45,11 +113,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final currentUid = authState.value?.uid;
+    
+    // Activate and listen to online presence heartbeat service
+    ref.watch(presenceProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Text('Alfloest', style: AppTextStyles.heading2.copyWith(
-          color: AppColors.textPrimary,
+          color: context.textPrimary,
           fontWeight: FontWeight.w700,
         )),
         actions: [
@@ -173,7 +244,7 @@ class _ChatList extends ConsumerWidget {
         lastMessage: chat.lastMessage,
         lastMessageTime: chat.lastMessageTime,
         unreadCount: chat.getUnreadCount(uid),
-        isOnline: user?.isOnline ?? false,
+        isOnline: user?.isCurrentlyOnline ?? false,
         isTyping: chat.isTyping(uid),
         isPinned: chat.isPinnedBy(uid),
         onTap: () => Navigator.push(context, MaterialPageRoute(

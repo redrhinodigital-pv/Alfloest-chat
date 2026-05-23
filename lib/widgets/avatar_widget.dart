@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/app_colors.dart';
 
 /// Reusable avatar widget with initials fallback and online indicator
@@ -31,16 +32,17 @@ class AvatarWidget extends StatelessWidget {
         Container(
           width: size,
           height: size,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             shape: BoxShape.circle,
             gradient: AppColors.primaryGradient,
           ),
           child: imageUrl != null && imageUrl!.isNotEmpty
               ? ClipOval(
-                  child: Image.network(
-                    imageUrl!,
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildInitials(),
+                    placeholder: (_, __) => _buildInitials(),
+                    errorWidget: (_, __, ___) => _buildInitials(),
                   ),
                 )
               : _buildInitials(),

@@ -78,6 +78,18 @@ class AuthViewModel extends StateNotifier<AuthViewState> {
     await _repo.signOut();
     state = const AuthViewState(status: AuthStatus.unauthenticated);
   }
+
+  /// Permanent account deletion viewmodel logic
+  Future<void> deleteAccount() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _repo.deleteAccount();
+      state = const AuthViewState(status: AuthStatus.unauthenticated);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
+    }
+  }
 }
 
 final authViewModelProvider = StateNotifierProvider<AuthViewModel, AuthViewState>((ref) {

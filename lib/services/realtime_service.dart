@@ -39,12 +39,12 @@ class RealtimeService {
     required String userId,
     required void Function(Map<String, dynamic> payload) onStatusUpdate,
   }) {
-    final channel = _supabase.channel('public:users:id=eq.$userId');
+    final channel = _supabase.channel('public:profiles:id=eq.$userId');
     
     channel.onPostgresChanges(
       event: PostgresChangeEvent.update,
       schema: 'public',
-      table: 'users',
+      table: 'profiles',
       filter: PostgresChangeFilter(
         type: PostgresChangeFilterType.eq,
         column: 'id', // Assuming your user table has an 'id' column matching the user

@@ -13,6 +13,11 @@ dependencies:
   # Supabase
   supabase_flutter: ^2.4.1
 
+  # Firebase Notifications
+  firebase_core: ^3.10.0
+  firebase_messaging: ^15.2.10
+  flutter_local_notifications: ^18.0.1
+
   # State Management
   flutter_riverpod: ^2.6.1
 
@@ -21,7 +26,7 @@ dependencies:
   hive_flutter: ^1.1.0
 
   # Audio
-  record: ^5.2.1
+  record: ^6.2.1
   just_audio: ^0.9.43
 
   # UI
@@ -49,11 +54,17 @@ dependencies:
   image_picker: ^1.2.2
   file_picker: ^11.0.2
   flutter_image_compress: ^2.3.0
+  video_compress: ^3.1.4
+  image: ^4.3.0
+  archive: ^4.0.0
+
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
 
 flutter:
   uses-material-design: true
@@ -67,3 +78,16 @@ flutter:
     - assets/stickers/reactions/
     - assets/gifs/
     - assets/lottie/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icons/alfloest_logo.png
+  adaptive_icon_background: "#0B1026"
+
+flutter_native_splash:
+  color: "#0B1026"
+  image: assets/icons/alfloest_logo.png
+  android: true
+  ios: true
+  web: true

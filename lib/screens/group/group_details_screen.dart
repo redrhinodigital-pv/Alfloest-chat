@@ -59,7 +59,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
 
       final downloadUrl = await ref.read(storageServiceProvider).uploadGroupAvatar(
             filePath: pickedFile.path,
-            bytes: compressedBytes,
+            bytes: compressedBytes.mediaBytes,
             groupId: widget.groupId,
           );
       await ref.read(groupRepositoryProvider).updateGroupDetails(widget.groupId, groupImage: downloadUrl);

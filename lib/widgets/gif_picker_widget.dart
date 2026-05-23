@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
@@ -14,11 +15,13 @@ class GifItem {
 class GifPickerWidget extends StatefulWidget {
   final ValueChanged<String> onGifSelected;
   final double height;
+  final ScrollController? scrollController; // Added to support draggable sheet integration
 
   const GifPickerWidget({
     super.key,
     required this.onGifSelected,
     this.height = 280,
+    this.scrollController,
   });
 
   @override
@@ -175,6 +178,7 @@ class _GifPickerWidgetState extends State<GifPickerWidget> {
             child: Container(
               color: AppColors.background,
               child: GridView.builder(
+                controller: widget.scrollController, // Hooked draggable scroll controller
                 padding: const EdgeInsets.all(8),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
@@ -190,25 +194,22 @@ class _GifPickerWidgetState extends State<GifPickerWidget> {
                       borderRadius: BorderRadius.circular(10),
                       child: Container(
                         color: AppColors.card,
-                        child: Image.network(
-                          gif.url,
+                        child: CachedNetworkImage( // Replaced with CachedNetworkImage
+                          imageUrl: gif.url,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Center(
+                          errorWidget: (_, __, ___) => const Center(
                             child: Icon(Icons.gif_box_outlined, color: AppColors.textHint),
                           ),
-                          loadingBuilder: (_, child, progress) {
-                            if (progress == null) return child;
-                            return Center(
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primary.withValues(alpha: 0.5),
-                                ),
+                          placeholder: (_, __) => Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary.withValues(alpha: 0.5),
                               ),
-                            );
-                          },
+                            ),
+                          ),
                         ),
                       ),
                     ),

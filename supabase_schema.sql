@@ -229,3 +229,39 @@ BEGIN
 END;
 $$;
 
+-- ------------------------------------------------------------------------------
+-- 6. SECURE ACCOUNT DELETION FUNCTION (RPC)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.delete_user_account()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  current_user_id uuid;
+BEGIN
+  current_user_id := auth.uid();
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- 1. Remove from all groups
+  UPDATE public.groups 
+  SET members = array_remove(members, current_user_id),
+      admins = array_remove(admins, current_user_id)
+  WHERE current_user_id = ANY(members);
+
+  -- 2. Delete all chats where the user is a participant
+  DELETE FROM public.chats 
+  WHERE current_user_id = ANY(participants);
+
+  -- 3. Delete all messages sent by the user
+  DELETE FROM public.messages 
+  WHERE "senderId" = current_user_id;
+
+  -- 4. Delete the user from auth.users (this cascades to public.profiles)
+  DELETE FROM auth.users WHERE id = current_user_id;
+END;
+$$;
+

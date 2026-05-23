@@ -181,7 +181,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           }
 
           final joinDate = DateFormat('MMMM yyyy').format(user.createdAt);
-          final isOnline = user.isOnline;
+          final isOnline = user.isCurrentlyOnline;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

@@ -1,15 +1,21 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../core/enums/enums.dart';
 import '../core/utils/date_formatter.dart';
+import '../core/extensions/theme_extensions.dart';
+import '../providers/settings_provider.dart';
 import './voice_note_widget.dart';
 import './animated_sticker_widget.dart';
 
 /// Chat bubble widget — supports sent/received, reply, forward, reactions, and media types.
-class ChatBubble extends StatelessWidget {
+/// Re-engineered to support blurred loading, and click-to-load HD previews in Data Saver Mode.
+class ChatBubble extends ConsumerStatefulWidget {
   final String text;
   final bool isSent;
   final DateTime timestamp;
@@ -57,6 +63,23 @@ class ChatBubble extends StatelessWidget {
     this.voiceNoteDuration,
   });
 
+  @override
+  ConsumerState<ChatBubble> createState() => _ChatBubbleState();
+}
+
+class _ChatBubbleState extends ConsumerState<ChatBubble> {
+  bool _loadFullSize = false;
+
+  /// Reconstruct thumbnail URL dynamically from media URL
+  String? get _thumbnailUrl {
+    final url = widget.mediaUrl;
+    if (url == null) return null;
+    if (url.contains('/images/')) {
+      return url.replaceAll('/images/', '/thumbnails/');
+    }
+    return null;
+  }
+
   String _formatFileSize(int bytes) {
     if (bytes <= 0) return "0 B";
     const suffixes = ["B", "KB", "MB", "GB"];
@@ -65,7 +88,7 @@ class ChatBubble extends StatelessWidget {
   }
 
   void _downloadFile(BuildContext context) async {
-    final urlStr = mediaUrl ?? voiceNoteUrl;
+    final urlStr = widget.mediaUrl ?? widget.voiceNoteUrl;
     if (urlStr == null || urlStr.isEmpty) return;
     final url = Uri.parse(urlStr);
     try {
@@ -133,43 +156,45 @@ class ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: widget.isSent ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
-        onLongPress: onLongPress,
-        onDoubleTap: onDoubleTap,
+        onLongPress: widget.onLongPress,
+        onDoubleTap: widget.onDoubleTap,
         child: Container(
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.75,
           ),
           margin: EdgeInsets.only(
-            left: isSent ? 64 : 12,
-            right: isSent ? 12 : 64,
+            left: widget.isSent ? 64 : 12,
+            right: widget.isSent ? 12 : 64,
             top: 2,
-            bottom: reactions.isNotEmpty ? 12 : 2,
+            bottom: widget.reactions.isNotEmpty ? 12 : 2,
           ),
           child: Stack(
             clipBehavior: Clip.none,
             children: [
               // Main bubble
               Container(
-                padding: (type == MessageType.sticker || type == MessageType.gif)
+                padding: (widget.type == MessageType.sticker || widget.type == MessageType.gif)
                     ? const EdgeInsets.all(4)
                     : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: (type == MessageType.sticker || type == MessageType.gif)
+                decoration: (widget.type == MessageType.sticker || widget.type == MessageType.gif)
                     ? null // No background for stickers/gifs
                     : BoxDecoration(
-                        gradient: isSent ? AppColors.primaryGradient : null,
-                        color: isSent ? null : Colors.white.withValues(alpha: 0.06),
+                        gradient: widget.isSent ? AppColors.primaryGradient : null,
+                        color: widget.isSent ? null : context.bubbleReceived,
                         borderRadius: BorderRadius.only(
                           topLeft: const Radius.circular(16),
                           topRight: const Radius.circular(16),
-                          bottomLeft: Radius.circular(isSent ? 16 : 4),
-                          bottomRight: Radius.circular(isSent ? 4 : 16),
+                          bottomLeft: Radius.circular(widget.isSent ? 16 : 4),
+                          bottomRight: Radius.circular(widget.isSent ? 4 : 16),
                         ),
-                        border: isSent
+                        border: widget.isSent
                             ? null
                             : Border.all(
-                                color: Colors.white.withValues(alpha: 0.08),
+                                color: context.isDarkMode
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : const Color(0xFFE5E7EB),
                                 width: 1.0,
                               ),
                       ),
@@ -177,11 +202,11 @@ class ChatBubble extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Sender name (group chats)
-                    if (senderName != null && !isSent)
+                    if (widget.senderName != null && !widget.isSent)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 2),
                         child: Text(
-                          senderName!,
+                          widget.senderName!,
                           style: AppTextStyles.chatSender.copyWith(
                             color: AppColors.primaryLight,
                           ),
@@ -189,7 +214,7 @@ class ChatBubble extends StatelessWidget {
                       ),
 
                     // Forwarded label
-                    if (isForwarded)
+                    if (widget.isForwarded)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Row(
@@ -209,9 +234,9 @@ class ChatBubble extends StatelessWidget {
                       ),
 
                     // Reply preview
-                    if (isReply && replyToText != null)
+                    if (widget.isReply && widget.replyToText != null)
                       GestureDetector(
-                        onTap: onReplyTap,
+                        onTap: widget.onReplyTap,
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           margin: const EdgeInsets.only(bottom: 6),
@@ -220,24 +245,24 @@ class ChatBubble extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                             border: const Border(
                               left: BorderSide(
-                                color: AppColors.primaryLight,
-                                width: 3,
+                                  color: AppColors.primaryLight,
+                                  width: 3,
                               ),
                             ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (replyToSender != null)
+                              if (widget.replyToSender != null)
                                 Text(
-                                  replyToSender!,
+                                  widget.replyToSender!,
                                   style: AppTextStyles.labelSmall.copyWith(
                                     color: AppColors.primaryLight,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               Text(
-                                replyToText!,
+                                widget.replyToText!,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTextStyles.bodySmall.copyWith(
@@ -250,7 +275,7 @@ class ChatBubble extends StatelessWidget {
                       ),
 
                     // Message Content (Media or Text)
-                    if (isDeletedForEveryone)
+                    if (widget.isDeletedForEveryone)
                       Text(
                         '🚫 This message was deleted',
                         style: AppTextStyles.chatMessage.copyWith(
@@ -259,22 +284,22 @@ class ChatBubble extends StatelessWidget {
                         ),
                       )
                     else
-                      _buildMessageContent(context),
+                      _buildMessageContent(context, ref),
 
                     const SizedBox(height: 4),
 
-                    // Timestamp + status row below content for cleaner layout
+                    // Timestamp + status row below content
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          DateFormatter.formatMessageTime(timestamp),
+                          DateFormatter.formatMessageTime(widget.timestamp),
                           style: AppTextStyles.chatTimestamp.copyWith(
-                            color: isSent ? Colors.white60 : AppColors.textHint,
+                            color: widget.isSent ? Colors.white60 : context.textSecondary.withValues(alpha: 0.7),
                           ),
                         ),
-                        if (isSent) ...[
+                        if (widget.isSent) ...[
                           const SizedBox(width: 4),
                           _buildStatusIcon(),
                         ],
@@ -285,11 +310,11 @@ class ChatBubble extends StatelessWidget {
               ),
 
               // Reactions bar
-              if (reactions.isNotEmpty)
+              if (widget.reactions.isNotEmpty)
                 Positioned(
                   bottom: -10,
-                  right: isSent ? 8 : null,
-                  left: isSent ? null : 8,
+                  right: widget.isSent ? 8 : null,
+                  left: widget.isSent ? null : 8,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
@@ -300,8 +325,8 @@ class ChatBubble extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        ...reactions.values.toSet().map((emoji) {
-                          final count = reactions.values.where((e) => e == emoji).length;
+                        ...widget.reactions.values.toSet().map((emoji) {
+                          final count = widget.reactions.values.where((e) => e == emoji).length;
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             child: Text(
@@ -321,47 +346,147 @@ class ChatBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildMessageContent(BuildContext context) {
-    switch (type) {
+  Widget _buildMessageContent(BuildContext context, WidgetRef ref) {
+    switch (widget.type) {
       case MessageType.image:
-        return mediaUrl != null && mediaUrl!.isNotEmpty
-            ? GestureDetector(
-                onTap: () => _showImagePreview(context, mediaUrl!),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    constraints: const BoxConstraints(maxHeight: 200),
-                    child: Image.network(
-                      mediaUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Center(
-                        child: Icon(Icons.broken_image, color: Colors.white54, size: 40),
-                      ),
-                      loadingBuilder: (_, child, progress) {
-                        if (progress == null) return child;
-                        return Container(
-                          height: 150,
-                          color: Colors.black12,
-                          child: const Center(
-                            child: CircularProgressIndicator(color: AppColors.primary),
-                          ),
-                        );
-                      },
+        if (widget.mediaUrl == null || widget.mediaUrl!.isEmpty) return const SizedBox.shrink();
+        final dataSaver = ref.watch(dataSaverProvider);
+        final shouldDefer = dataSaver && !_loadFullSize;
+        final displayUrl = shouldDefer ? (_thumbnailUrl ?? widget.mediaUrl!) : widget.mediaUrl!;
+
+        return GestureDetector(
+          onTap: () {
+            if (shouldDefer) {
+              setState(() => _loadFullSize = true);
+            } else {
+              _showImagePreview(context, widget.mediaUrl!);
+            }
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CachedNetworkImage(
+                    imageUrl: displayUrl,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => const Center(
+                      child: Icon(Icons.broken_image, color: Colors.white54, size: 40),
                     ),
+                    placeholder: (_, __) => Container(
+                      height: 150,
+                      color: Colors.black12,
+                      child: const Center(
+                        child: CircularProgressIndicator(color: AppColors.primary),
+                      ),
+                    ),
+                    // If deferred in Data Saver, blur it cleanly
+                    imageBuilder: shouldDefer
+                        ? (context, imageProvider) => ImageFiltered(
+                              imageFilter: ui.ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
+                              child: Image(image: imageProvider, fit: BoxFit.cover),
+                            )
+                        : null,
                   ),
-                ),
-              )
-            : const SizedBox.shrink();
+                  if (shouldDefer)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.download_rounded, color: Colors.white, size: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Load HD (${_formatFileSize(widget.fileSize ?? 0)})',
+                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
 
       case MessageType.video:
-        return const SizedBox.shrink();
+        if (widget.mediaUrl == null || widget.mediaUrl!.isEmpty) return const SizedBox.shrink();
+        final dataSaver = ref.watch(dataSaverProvider);
+        final shouldDefer = dataSaver && !_loadFullSize;
+        final thumbUrl = _thumbnailUrl;
+
+        return GestureDetector(
+          onTap: () {
+            if (shouldDefer) {
+              setState(() => _loadFullSize = true);
+            } else {
+              _downloadFile(context);
+            }
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 200, maxWidth: 200),
+              color: Colors.black26,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (thumbUrl != null)
+                    CachedNetworkImage(
+                      imageUrl: thumbUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => const Icon(Icons.video_library, color: Colors.white54, size: 40),
+                    )
+                  else
+                    const Icon(Icons.video_library, color: Colors.white54, size: 40),
+                  
+                  // Play overlay
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Icon(
+                      shouldDefer ? Icons.download_rounded : Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  
+                  if (shouldDefer)
+                    Positioned(
+                      bottom: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Load Video (${_formatFileSize(widget.fileSize ?? 0)})',
+                          style: const TextStyle(color: Colors.white, fontSize: 11),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
 
       case MessageType.voiceNote:
-        return voiceNoteUrl != null
+        return widget.voiceNoteUrl != null
             ? VoiceMessageBubble(
-                url: voiceNoteUrl!,
-                isSent: isSent,
-                durationSeconds: voiceNoteDuration,
+                url: widget.voiceNoteUrl!,
+                isSent: widget.isSent,
+                durationSeconds: widget.voiceNoteDuration,
               )
             : const SizedBox.shrink();
 
@@ -382,15 +507,15 @@ class ChatBubble extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      fileName ?? 'Document',
-                      style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
+                      widget.fileName ?? 'Document',
+                      style: TextStyle(color: widget.isSent ? Colors.white : context.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (fileSize != null)
+                    if (widget.fileSize != null)
                       Text(
-                        _formatFileSize(fileSize!),
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                        _formatFileSize(widget.fileSize!),
+                        style: TextStyle(color: widget.isSent ? Colors.white70 : context.textSecondary, fontSize: 11),
                       ),
                   ],
                 ),
@@ -412,7 +537,7 @@ class ChatBubble extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              text,
+              widget.text,
               style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary, fontStyle: FontStyle.italic),
               textAlign: TextAlign.center,
             ),
@@ -421,32 +546,29 @@ class ChatBubble extends StatelessWidget {
 
       case MessageType.sticker:
         return AnimatedStickerWidget(
-          url: mediaUrl ?? '',
+          url: widget.mediaUrl ?? '',
           size: 150,
         );
 
       case MessageType.gif:
-        return mediaUrl != null && mediaUrl!.isNotEmpty
+        return widget.mediaUrl != null && widget.mediaUrl!.isNotEmpty
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   constraints: const BoxConstraints(maxHeight: 200, maxWidth: 200),
-                  child: Image.network(
-                    mediaUrl!,
+                  child: CachedNetworkImage(
+                    imageUrl: widget.mediaUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Center(
+                    errorWidget: (_, __, ___) => const Center(
                       child: Icon(Icons.gif_box_outlined, color: Colors.white54, size: 40),
                     ),
-                    loadingBuilder: (_, child, progress) {
-                      if (progress == null) return child;
-                      return Container(
-                        height: 150,
-                        color: Colors.black12,
-                        child: const Center(
-                          child: CircularProgressIndicator(color: AppColors.primary),
-                        ),
-                      );
-                    },
+                    placeholder: (_, __) => Container(
+                      height: 150,
+                      color: Colors.black12,
+                      child: const Center(
+                        child: CircularProgressIndicator(color: AppColors.primary),
+                      ),
+                    ),
                   ),
                 ),
               )
@@ -454,16 +576,16 @@ class ChatBubble extends StatelessWidget {
 
       case MessageType.text:
         return Text(
-          text,
+          widget.text,
           style: AppTextStyles.chatMessage.copyWith(
-            color: AppColors.textPrimary,
+            color: widget.isSent ? Colors.white : context.textPrimary,
           ),
         );
     }
   }
 
   Widget _buildStatusIcon() {
-    switch (status) {
+    switch (widget.status) {
       case MessageStatus.sending:
         return const Icon(Icons.access_time, size: 13, color: Colors.white54);
       case MessageStatus.sent:

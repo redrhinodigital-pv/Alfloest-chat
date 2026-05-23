@@ -131,7 +131,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ],
                     ),
                     child: Image.asset(
-                      'assets/images/logo.png',
+                      'assets/icons/alfloest_logo.png',
                       width: 90,
                       height: 90,
                       fit: BoxFit.contain,

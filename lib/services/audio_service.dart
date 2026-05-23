@@ -49,13 +49,13 @@ class AudioService {
         path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
       }
 
-      // Record as AAC for compression
+      // Record as AAC for highly optimized compression
       await _recorder.start(
         const RecordConfig(
           encoder: AudioEncoder.aacLc,
-          bitRate: 64000, // Low bitrate for lightweight files
-          sampleRate: 22050, // Sufficient for voice
-          numChannels: 1, // Mono for smaller files
+          bitRate: 32000, // Highly compressed speech-optimized bitrate (24kbps-48kbps target)
+          sampleRate: 16000, // Standard frequency for clear speech
+          numChannels: 1, // Mono channel to halve file footprint
         ),
         path: path,
       );

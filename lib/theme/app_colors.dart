@@ -5,15 +5,15 @@ class AppColors {
   AppColors._();
 
   // ── Primary Palette ──
-  static const Color primary = Color(0xFF7C3AED);       // Violet
-  static const Color primaryLight = Color(0xFF8B5CF6);   // Light Violet
-  static const Color primaryDark = Color(0xFF6D28D9);    // Dark Violet
+  static const Color primary = Color(0xFF8B5CF6);       // Vibrant Violet
+  static const Color primaryLight = Color(0xFFA78BFA);   // Soft Violet
+  static const Color primaryDark = Color(0xFF6D28D9);    // Deep Violet
 
   // ── Background & Surface ──
-  static const Color background = Color(0xFF0F0F23);     // Near Black
-  static const Color surface = Color(0xFF16213E);        // Dark Blue Surface
-  static const Color card = Color(0xFF1E293B);           // Slate Card
-  static const Color navBar = Color(0xFF131A2E);         // Navigation bar
+  static const Color background = Color(0xFF0B1026);     // Premium Deep Violet
+  static const Color surface = Color(0xFF121833);        // Dark Blue-Violet Surface
+  static const Color card = Color(0xFF1B2244);           // Sleek Card
+  static const Color navBar = Color(0xFF080C20);         // Ultra Dark Nav Bar
 
   // ── Text ──
   static const Color textPrimary = Color(0xFFF8FAFC);   // White
@@ -28,39 +28,39 @@ class AppColors {
   static const Color info = Color(0xFF06B6D4);           // Cyan
 
   // ── Chat Bubbles ──
-  static const Color bubbleSent = Color(0xFF7C3AED);     // Violet (self)
-  static const Color bubbleReceived = Color(0xFF1E293B); // Slate (other)
+  static const Color bubbleSent = Color(0xFF6D28D9);     // Deep Violet (self)
+  static const Color bubbleReceived = Color(0xFF1B2244); // Sleek Surface (other)
 
   // ── Misc ──
-  static const Color divider = Color(0xFF1E293B);
-  static const Color shimmerBase = Color(0xFF1E293B);
-  static const Color shimmerHighlight = Color(0xFF334155);
+  static const Color divider = Color(0xFF1B2244);
+  static const Color shimmerBase = Color(0xFF121833);
+  static const Color shimmerHighlight = Color(0xFF1B2244);
   static const Color online = Color(0xFF22C55E);
   static const Color offline = Color(0xFF64748B);
 
   // ── Gradients ──
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF7C3AED), Color(0xFF3B82F6)],
+    colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient splashGradient = LinearGradient(
-    colors: [Color(0xFF0F0F23), Color(0xFF1A1A2E), Color(0xFF16213E)],
+    colors: [Color(0xFF0B1026), Color(0xFF121833), Color(0xFF1B2244)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
 
   static const LinearGradient cardGradient = LinearGradient(
-    colors: [Color(0xFF1E293B), Color(0xFF16213E)],
+    colors: [Color(0xFF1B2244), Color(0xFF121833)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  // ── Light Theme Colors (for future use) ──
-  static const Color lightBackground = Color(0xFFF8FAFC);
+  // ── Light Theme Colors ──
+  static const Color lightBackground = Color(0xFFF5F7FF);
   static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightCard = Color(0xFFF1F5F9);
+  static const Color lightCard = Color(0xFFFFFFFF);
   static const Color lightTextPrimary = Color(0xFF0F172A);
-  static const Color lightTextSecondary = Color(0xFF64748B);
+  static const Color lightTextSecondary = Color(0xFF6B7280);
 }

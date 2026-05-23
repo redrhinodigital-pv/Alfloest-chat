@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../core/utils/date_formatter.dart';
+import '../core/extensions/theme_extensions.dart';
 import 'avatar_widget.dart';
 
 /// Chat list tile — displays chat preview on home screen
@@ -65,7 +66,7 @@ class ChatTile extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.labelLarge.copyWith(
-                            color: AppColors.textPrimary,
+                            color: context.textPrimary,
                           ),
                         ),
                       ),
@@ -91,7 +92,7 @@ class ChatTile extends StatelessWidget {
                           style: AppTextStyles.bodySmall.copyWith(
                             color: isTyping
                                 ? AppColors.primary
-                                : AppColors.textSecondary,
+                                : context.textSecondary,
                             fontStyle: isTyping ? FontStyle.italic : null,
                           ),
                         ),

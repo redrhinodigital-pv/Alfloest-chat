@@ -59,6 +59,16 @@ class HiveService {
     await setSetting(AppConstants.onboardingCompleteKey, true);
   }
 
+  /// Get Data Saver preference
+  static bool getDataSaver() {
+    return getSetting<bool>('data_saver') ?? false;
+  }
+
+  /// Set Data Saver preference
+  static Future<void> setDataSaver(bool value) async {
+    await setSetting('data_saver', value);
+  }
+
   // ─────────────────────────────────────────────
   // User Cache
   // ─────────────────────────────────────────────

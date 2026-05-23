@@ -114,6 +114,15 @@ class UserModel {
     };
   }
 
+  /// Real-time online check with auto-offline timeout (e.g. 55s threshold since heartbeat is 25s)
+  bool get isCurrentlyOnline {
+    if (hideOnline) return false;
+    if (!isOnline) return false;
+    if (lastSeen == null) return false;
+    final diff = DateTime.now().difference(lastSeen!);
+    return diff.inSeconds < 55;
+  }
+
   /// Returns initials for avatar placeholder
   String get initials {
     final parts = displayName.trim().split(' ');

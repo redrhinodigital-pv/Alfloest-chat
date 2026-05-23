@@ -144,4 +144,15 @@ class AuthRepository {
     await _authService.signOut();
     await HiveService.clearAll();
   }
+
+  /// Permanently delete current user's authentication and data
+  Future<void> deleteAccount() async {
+    final uid = currentUid;
+    if (uid != null) {
+      // Execute security definer RPC function to clean up all data and delete auth user
+      await _dbService.db.rpc('delete_user_account');
+      // Clear local Hive cache database
+      await HiveService.clearAll();
+    }
+  }
 }

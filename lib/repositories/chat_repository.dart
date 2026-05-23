@@ -23,29 +23,25 @@ class ChatRepository {
       return ChatModel.fromMap(response);
     }
 
+    // Do NOT write the chat room row immediately to prevent empty chats.
+    // Return a temporary ChatModel. It will be inserted when the first message is sent.
     final chatId = _uuid.v4();
-    final chat = ChatModel(
+    return ChatModel(
       id: chatId,
       participants: [uid1, uid2],
       type: ChatType.oneToOne,
       createdAt: DateTime.now(),
     );
-
-    await _dbService.insertRow(
-      table: FirestoreConstants.chatsCollection,
-      data: chat.toDbMap(),
-    );
-
-    return chat;
   }
 
   Stream<List<ChatModel>> streamChats(String uid) {
+    // Only return chats that have at least one message (lastMessage is not null)
     return StreamUtils.retryStream(() => _dbService.db
         .from(FirestoreConstants.chatsCollection)
         .stream(primaryKey: ['id'])
         .order('lastMessageTime', ascending: false)
         .map((list) => list
-            .where((c) => (c['participants'] as List).contains(uid))
+            .where((c) => (c['participants'] as List).contains(uid) && c['lastMessage'] != null)
             .map((e) => ChatModel.fromMap(e))
             .toList()));
   }
@@ -71,7 +67,23 @@ class ChatRepository {
     String? forwardedFrom, String? voiceNoteUrl, int? voiceNoteDuration,
     String? mediaUrl, String? fileName, int? fileSize,
     List<String> mentions = const [],
+    String? receiverId, // receiverId to support dynamic chat creation
   }) async {
+    // 1. Dynamic Chat Room Creation: check if chat exists in DB, if not create it
+    final chatExists = await getChat(chatId) != null;
+    if (!chatExists && receiverId != null) {
+      final newChat = ChatModel(
+        id: chatId,
+        participants: [senderId, receiverId],
+        type: ChatType.oneToOne,
+        createdAt: DateTime.now(),
+      );
+      await _dbService.insertRow(
+        table: FirestoreConstants.chatsCollection,
+        data: newChat.toDbMap(),
+      );
+    }
+
     final msgId = _uuid.v4();
     final message = MessageModel(
       id: msgId, chatId: chatId, senderId: senderId, senderName: senderName, text: text,

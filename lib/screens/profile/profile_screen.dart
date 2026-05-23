@@ -46,7 +46,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final storage = ref.read(storageServiceProvider);
       final downloadUrl = await storage.uploadAvatar(
         filePath: image.path,
-        bytes: compressedBytes,
+        bytes: compressedBytes.mediaBytes,
         userId: uid,
       );
       

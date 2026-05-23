@@ -130,7 +130,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           ],
                         ),
                         child: Image.asset(
-                          'assets/images/logo.png',
+                          'assets/icons/alfloest_logo.png',
                           width: 120,
                           height: 120,
                           fit: BoxFit.contain,

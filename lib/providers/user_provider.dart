@@ -1,9 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/user_repository.dart';
 import '../models/user_model.dart';
+import '../services/presence_service.dart';
+import 'auth_provider.dart';
 
 /// User repository provider
 final userRepositoryProvider = Provider((ref) => UserRepository());
+
+/// Active online presence service provider
+final presenceProvider = Provider<PresenceService?>((ref) {
+  final authState = ref.watch(authStateProvider).value;
+  if (authState == null) return null;
+
+  final userRepo = ref.read(userRepositoryProvider);
+  final presenceService = PresenceService(uid: authState.uid, userRepo: userRepo);
+  
+  // Initialize lifecycle & socket listeners
+  presenceService.init();
+
+  ref.onDispose(() {
+    presenceService.dispose();
+  });
+
+  return presenceService;
+});
 
 /// Stream current user's profile (realtime)
 final currentUserProvider = StreamProvider.family<UserModel?, String>((ref, uid) {
